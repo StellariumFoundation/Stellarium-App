@@ -3,13 +3,13 @@ name: Build and Release Stellarium MVP
 on:
   push:
     branches: [ "master" ]
-  workflow_dispatch: # Allows you to run it manually from the Actions tab
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Needed to create the Release
+      contents: write
 
     steps:
     - name: Checkout Code
@@ -26,33 +26,37 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build Optimized APKs
-      # This runs the build task that generates splits based on your build.gradle
       run: ./gradlew assembleDebug
+
+    - name: List Build Outputs (Debugging)
+      run: |
+        echo "Listing APK directory structure to verify paths:"
+        ls -R app/build/outputs/apk/
 
     - name: Prepare and Rename APKs
       id: prepare_apks
       run: |
         mkdir -p release_apks
         
-        # Define the base version (you can fetch this from gradle if you want, hardcoded for MVP)
-        VERSION="v1.0"
+        # The correct path for splits is usually 'app/build/outputs/apk/debug/'
+        BASE_PATH="app/build/outputs/apk/debug"
         
-        # 1. Move and Rename Universal APK
-        cp app/build/outputs/apk/universal/debug/app-universal-debug.apk release_apks/Stellarium-Universal.apk
+        # Move and Rename Universal APK
+        cp "$BASE_PATH/app-universal-debug.apk" release_apks/Stellarium-Universal.apk
         
-        # 2. Move and Rename ARM64 (v8a)
-        cp app/build/outputs/apk/abi/debug/app-arm64-v8a-debug.apk release_apks/Stellarium-ARM64.apk
+        # Move and Rename ARM64 (v8a)
+        cp "$BASE_PATH/app-arm64-v8a-debug.apk" release_apks/Stellarium-ARM64.apk
         
-        # 3. Move and Rename ARMv7 (v7a)
-        cp app/build/outputs/apk/abi/debug/app-armeabi-v7a-debug.apk release_apks/Stellarium-ARMv7.apk
+        # Move and Rename ARMv7 (v7a)
+        cp "$BASE_PATH/app-armeabi-v7a-debug.apk" release_apks/Stellarium-ARMv7.apk
         
-        # 4. Move and Rename x86_64 (PC Emulator)
-        cp app/build/outputs/apk/abi/debug/app-x86_64-debug.apk release_apks/Stellarium-x64.apk
+        # Move and Rename x86_64 (PC Emulator)
+        cp "$BASE_PATH/app-x86_64-debug.apk" release_apks/Stellarium-x64.apk
         
-        # 5. Move and Rename x86 (Old Emulator)
-        cp app/build/outputs/apk/abi/debug/app-x86-debug.apk release_apks/Stellarium-x86.apk
+        # Move and Rename x86 (Old Emulator)
+        cp "$BASE_PATH/app-x86-debug.apk" release_apks/Stellarium-x86.apk
         
-        echo "APKs prepared for release."
+        echo "APKs prepared successfully."
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
