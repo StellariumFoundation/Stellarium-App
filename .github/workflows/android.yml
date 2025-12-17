@@ -1,0 +1,76 @@
+name: Build and Release Stellarium MVP
+
+on:
+  push:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build Optimized APKs
+      run: ./gradlew assembleDebug
+
+    - name: List Build Outputs (Debugging)
+      run: |
+        echo "Listing APK directory structure to verify paths:"
+        ls -R app/build/outputs/apk/
+
+    - name: Prepare and Rename APKs
+      id: prepare_apks
+      run: |
+        mkdir -p release_apks
+        
+        # The correct path for splits is usually 'app/build/outputs/apk/debug/'
+        BASE_PATH="app/build/outputs/apk/debug"
+        
+        # Move and Rename Universal APK
+        cp "$BASE_PATH/app-universal-debug.apk" release_apks/Stellarium-Universal.apk
+        
+        # Move and Rename ARM64 (v8a)
+        cp "$BASE_PATH/app-arm64-v8a-debug.apk" release_apks/Stellarium-ARM64.apk
+        
+        # Move and Rename ARMv7 (v7a)
+        cp "$BASE_PATH/app-armeabi-v7a-debug.apk" release_apks/Stellarium-ARMv7.apk
+        
+        # Move and Rename x86_64 (PC Emulator)
+        cp "$BASE_PATH/app-x86_64-debug.apk" release_apks/Stellarium-x64.apk
+        
+        # Move and Rename x86 (Old Emulator)
+        cp "$BASE_PATH/app-x86-debug.apk" release_apks/Stellarium-x86.apk
+        
+        echo "APKs prepared successfully."
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/heads/master')
+      with:
+        tag_name: release-${{ github.run_number }}
+        name: Stellarium MVP Build ${{ github.run_number }}
+        draft: false
+        prerelease: false
+        files: |
+          release_apks/Stellarium-Universal.apk
+          release_apks/Stellarium-ARM64.apk
+          release_apks/Stellarium-ARMv7.apk
+          release_apks/Stellarium-x64.apk
+          release_apks/Stellarium-x86.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
