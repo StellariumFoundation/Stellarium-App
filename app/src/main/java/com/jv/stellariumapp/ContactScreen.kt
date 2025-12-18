@@ -1,5 +1,6 @@
 package com.jv.stellariumapp
 
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -48,10 +49,10 @@ fun ContactScreen() {
         
         Spacer(modifier = Modifier.height(8.dp))
         
-        // Detailed Subtitle
+        // Detailed Subtitle (Fixed Syntax Error using Triple Quotes)
         Text(
-            text = "Send Feedback, Suggestions, Compliments, Proposals, Business Partnerships, Customer Support Queries, etc
-... to the Stellarium Foundation and Radiohead.",
+            text = """Send Feedback, Suggestions, Compliments, Proposals, Business Partnerships, Customer Support Queries, etc...
+to the Stellarium Foundation and Radiohead.""",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onBackground
