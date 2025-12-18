@@ -17,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -25,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,7 +34,7 @@ fun SponsorScreen(navController: NavController) {
     var showSheet by remember { mutableStateOf(false) }
     var selectedMethod by remember { mutableStateOf<PaymentMethod?>(null) }
     
-    // Fix: skipPartiallyExpanded ensures the sheet opens fully and doesn't get stuck
+    // Fix: skipPartiallyExpanded ensures the sheet opens fully
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     Column(
@@ -76,12 +78,14 @@ fun SponsorScreen(navController: NavController) {
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                // Button to go to Contact Screen
                 Button(onClick = { 
-                    try {
-                        navController.navigate(Screen.Contact.route) 
-                    } catch (e: Exception) {
-                        e.printStackTrace()
+                    // Navigation Fix to prevent crashes/stack issues
+                    navController.navigate(Screen.Contact.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
                     }
                 }) {
                     Text("Contact Us for a Deal")
@@ -152,8 +156,9 @@ fun SponsorScreen(navController: NavController) {
         ModalBottomSheet(
             onDismissRequest = { showSheet = false },
             sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface, // Ensure it has a background
-            contentColor = MaterialTheme.colorScheme.onSurface
+            // FIX: Use a Solid Dark Color instead of semi-transparent theme surface
+            containerColor = Color(0xFF101010), 
+            contentColor = Color.White
         ) {
             // Content inside the sheet
             Column(
@@ -214,19 +219,82 @@ fun BankDetails() {
     Text("Please choose the account matching your currency.", textAlign = TextAlign.Center, style = MaterialTheme.typography.bodySmall)
     Spacer(modifier = Modifier.height(24.dp))
 
-    // Cayman / USD
-    BankSection("Cayman Islands (USD)", "BANCO C6 S.A. CAYMAN BRANCH", 
-        "Account: 1009519676\nSwift: CSIXKYKY\nIntermediary: JP Morgan Chase (CHASUS33)")
+    // 1. Cayman Islands (USD)
+    BankSection(
+        title = "Cayman Islands (USD)", 
+        bankName = "BANCO C6 S.A. CAYMAN BRANCH", 
+        details = "Holder: ELIABE MATOS DA SILVA\nAccount: 1009519676\nSwift: CSIXKYKY\nIntermediary: JP Morgan Chase (CHASUS33)"
+    )
 
-    // Brazil
-    BankSection("Brazil (BRL)", "PIX Key", "stellar.foundation.us@gmail.com")
+    // 2. Swiss Franc
+    BankSection(
+        title = "Swiss Franc (CHF)", 
+        bankName = "Revolut Technologies Singapore", 
+        details = "Holder: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2\nAddr: 6 Battery Road, Floor 6-01, 049909, Singapore"
+    )
 
-    // Euro
-    BankSection("Euro (Local/SEPA)", "Revolut Bank UAB", "IBAN: LT93 3250 0324 1949 5535\nBIC: REVOLT21")
+    // 3. Brazilian Real
+    BankSection(
+        title = "Brazilian Real (BRL)", 
+        bankName = "PIX Transfer", 
+        details = "stellar.foundation.us@gmail.com"
+    )
 
-    // Global Revolut
-    BankSection("Global (GBP, HKD, AED, ILS, JPY, PLN, CHF)", "Revolut Technologies Singapore", 
-        "Account: 6120621849\nBIC/SWIFT: REVOSGS2")
+    // 4. Euro (Local)
+    BankSection(
+        title = "Euro (Local/SEPA)", 
+        bankName = "Revolut Bank UAB", 
+        details = "Holder: Eliabe Matos Da Silva\nIBAN: LT93 3250 0324 1949 5535\nBIC/SWIFT: REVOLT21\nAddr: Konstitucijos ave. 21B, 08130, Vilnius, Lithuania"
+    )
+
+    // 5. Euro (International)
+    BankSection(
+        title = "Euro (International SWIFT)", 
+        bankName = "Revolut Technologies Singapore", 
+        details = "Holder: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2\nAddr: 6 Battery Road, Floor 6-01, 049909, Singapore"
+    )
+
+    // 6. British Pound
+    BankSection(
+        title = "British Pound (GBP)", 
+        bankName = "Revolut Technologies Singapore", 
+        details = "Holder: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2"
+    )
+
+    // 7. Hong Kong Dollar
+    BankSection(
+        title = "Hong Kong Dollar (HKD)", 
+        bankName = "Revolut Technologies Singapore", 
+        details = "Holder: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2"
+    )
+
+    // 8. UAE Dirham
+    BankSection(
+        title = "UAE Dirham (AED)", 
+        bankName = "Revolut Technologies Singapore", 
+        details = "Holder: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2"
+    )
+
+    // 9. Israeli New Shekel
+    BankSection(
+        title = "Israeli New Shekel (ILS)", 
+        bankName = "Revolut Technologies Singapore", 
+        details = "Holder: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2"
+    )
+
+    // 10. Japanese Yen
+    BankSection(
+        title = "Japanese Yen (JPY)", 
+        bankName = "Revolut Technologies Singapore", 
+        details = "Holder: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2"
+    )
+
+    // 11. Polish Zloty
+    BankSection(
+        title = "Polish Zloty (PLN)", 
+        bankName = "Revolut Technologies Singapore", 
+        details = "Holder: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2"
+    )
 }
 
 @Composable
@@ -252,6 +320,8 @@ fun CryptoDetails() {
     Spacer(modifier = Modifier.height(8.dp))
     Text("Use Trocador to pay with Bitcoin, Ethereum, etc.", textAlign = TextAlign.Center, style = MaterialTheme.typography.bodySmall)
     Spacer(modifier = Modifier.height(16.dp))
+    
+    // Updated Trocador Link
     Button(onClick = {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=44u8KhinKQ4SgpxwS5jq3cJBMWVsWnMHaGMqYp8abTw3iAJW5izBm9V7uoNVcXAeWS6UqUzVdrn2qAtH4Epd5RkoDJxtRaL&donation=True&amount=600.0&name=Stellarium+Foundation+&description=Donation+Checkout&email=stellar.foundation.us@gmail.com&ticker_from=usdc&network_from=ERC20&bgcolor="))
         context.startActivity(intent)
@@ -269,8 +339,10 @@ fun PatreonDetails() {
     Spacer(modifier = Modifier.height(16.dp))
     Text("Join our exclusive community on Patreon.", textAlign = TextAlign.Center)
     Spacer(modifier = Modifier.height(24.dp))
+    
+    // Updated Patreon Link
     Button(onClick = {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.patreon.com/join/StellariumFoundation"))
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.patreon.com/join/StellariumFoundation?redirect_uri=https%3A%2F%2F1830164895-atari-embeds.googleusercontent.com%2Fembeds%2F16cb204cf3a9d4d223a0a3fd8b0eec5d%2Finner-frame-minified.html%3Fjsh%3Dm%253B%252F_%252Fscs%252Fabc-static%252F_%252Fjs%252Fk%253Dgapi.lb.en.z-CF99wuLeU.O%252Fd%253D1%252Frs%253DAHpOoo8yJLmK2FeQzRT4hxPn9_NEJo9eCg%252Fm%253D__features__&utm_medium=widget"))
         context.startActivity(intent)
     }) {
         Text("Visit Patreon Page")
@@ -288,12 +360,10 @@ fun PayPalDetails() {
     Spacer(modifier = Modifier.height(24.dp))
     Button(onClick = {
         try {
-            // Try to open PayPal App
             val intent = context.packageManager.getLaunchIntentForPackage("com.paypal.android.p2pmobile")
             if (intent != null) {
                 context.startActivity(intent)
             } else {
-                // Fallback to web
                 val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.paypal.com"))
                 context.startActivity(webIntent)
             }
