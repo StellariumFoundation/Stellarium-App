@@ -21,36 +21,48 @@ fun BookScreen() {
     )
 
     Column(
-        modifier = Modifier.padding(16.dp).fillMaxSize(),
+        modifier = Modifier
+            .padding(16.dp)
+            .fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = "The Stellarium Book", 
             style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.height(16.dp))
         
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
         ) {
             items(chapters) { chapter ->
-                Card(modifier = Modifier.fillMaxWidth()) {
+                // Using OutlinedCard for a cleaner look on the dark gradient
+                OutlinedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
                     Column(
-                        modifier = Modifier.padding(20.dp),
+                        modifier = Modifier
+                            .padding(20.dp)
+                            .fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
                             text = chapter.title, 
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = MaterialTheme.colorScheme.secondary,
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = chapter.content, 
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MaterialTheme.typography.bodyMedium, // Smaller font
                             textAlign = TextAlign.Center
                         )
                     }
@@ -60,5 +72,5 @@ fun BookScreen() {
     }
 }
 
-// THIS WAS MISSING
+// Fixed: Data class is now present
 data class Chapter(val title: String, val content: String)

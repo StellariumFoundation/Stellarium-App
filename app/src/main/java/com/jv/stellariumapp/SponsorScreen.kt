@@ -23,11 +23,16 @@ fun SponsorScreen() {
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "Support the Mission", style = MaterialTheme.typography.headlineMedium)
+        Text(
+            text = "Support the Mission", 
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.primary
+        )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "Join us in creating global prosperity.", 
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center
         )
         
@@ -45,34 +50,40 @@ fun SponsorOption(title: String, details: String) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     
-    Card(
+    OutlinedCard(
         onClick = {
             clipboardManager.setText(AnnotatedString(details))
             Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
         },
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier
+                .padding(20.dp)
+                .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = title, 
                 style = MaterialTheme.typography.titleMedium, 
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.secondary,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = details,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium, // Smaller font
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "(Tap to Copy)", 
                 style = MaterialTheme.typography.labelSmall, 
-                color = MaterialTheme.colorScheme.secondary
+                color = MaterialTheme.colorScheme.tertiary,
+                textAlign = TextAlign.Center
             )
         }
     }
