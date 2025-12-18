@@ -79,7 +79,7 @@ fun SponsorScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 Button(onClick = { 
-                    // Navigation Fix to prevent crashes/stack issues
+                    // Navigation Fix
                     navController.navigate(Screen.Contact.route) {
                         popUpTo(navController.graph.findStartDestination().id) {
                             saveState = true
@@ -156,8 +156,8 @@ fun SponsorScreen(navController: NavController) {
         ModalBottomSheet(
             onDismissRequest = { showSheet = false },
             sheetState = sheetState,
-            // FIX: Use a Solid Dark Color instead of semi-transparent theme surface
-            containerColor = Color(0xFF101010), 
+            // FIX: Solid opaque background color for readability
+            containerColor = Color(0xFF1E1E1E), 
             contentColor = Color.White
         ) {
             // Content inside the sheet
@@ -214,86 +214,97 @@ fun PaymentGridItem(
 
 @Composable
 fun BankDetails() {
+    val context = LocalContext.current
+    
     Text("Bank Transfer Details", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
     Spacer(modifier = Modifier.height(16.dp))
     Text("Please choose the account matching your currency.", textAlign = TextAlign.Center, style = MaterialTheme.typography.bodySmall)
+    
+    // Link to Literature (from prompt)
+    TextButton(onClick = {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.notion.so/Stellarium-Literature-19fc1c04bbc1801f9243d1fa5d7d44ad?pvs=21"))
+        context.startActivity(intent)
+    }) {
+        Text("View Stellarium Literature Docs")
+    }
+    
     Spacer(modifier = Modifier.height(24.dp))
 
     // 1. Cayman Islands (USD)
     BankSection(
         title = "Cayman Islands (USD)", 
         bankName = "BANCO C6 S.A. CAYMAN BRANCH", 
-        details = "Holder: ELIABE MATOS DA SILVA\nAccount: 1009519676\nSwift: CSIXKYKY\nIntermediary: JP Morgan Chase (CHASUS33)"
+        details = "Account holder: ELIABE MATOS DA SILVA\nAccount number: 1009519676\nSwift: CSIXKYKY\nCountry: Cayman Islands\nCurrency: Dollars\n\nIntermediary bank details:\nBank: JP Morgan Chase Bank, NA\nSwift: CHASUS33"
     )
 
     // 2. Swiss Franc
     BankSection(
         title = "Swiss Franc (CHF)", 
-        bankName = "Revolut Technologies Singapore", 
-        details = "Holder: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2\nAddr: 6 Battery Road, Floor 6-01, 049909, Singapore"
+        bankName = "Revolut Technologies Singapore Pte. Ltd", 
+        details = "Beneficiary: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2\nAddress: 6 Battery Road, Floor 6-01, 049909, Singapore, Singapore"
     )
 
     // 3. Brazilian Real
     BankSection(
         title = "Brazilian Real (BRL)", 
-        bankName = "PIX Transfer", 
+        bankName = "PIX Key", 
         details = "stellar.foundation.us@gmail.com"
     )
 
     // 4. Euro (Local)
     BankSection(
-        title = "Euro (Local/SEPA)", 
+        title = "Euro (Local Transfers)", 
         bankName = "Revolut Bank UAB", 
-        details = "Holder: Eliabe Matos Da Silva\nIBAN: LT93 3250 0324 1949 5535\nBIC/SWIFT: REVOLT21\nAddr: Konstitucijos ave. 21B, 08130, Vilnius, Lithuania"
+        details = "Beneficiary: Eliabe Matos Da Silva\nIBAN: LT93 3250 0324 1949 5535\nBIC/SWIFT: REVOLT21\nAddress: Konstitucijos ave. 21B, 08130, Vilnius, Lithuania"
     )
 
     // 5. Euro (International)
     BankSection(
-        title = "Euro (International SWIFT)", 
-        bankName = "Revolut Technologies Singapore", 
-        details = "Holder: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2\nAddr: 6 Battery Road, Floor 6-01, 049909, Singapore"
+        title = "Euro (International Transfers)", 
+        bankName = "Revolut Technologies Singapore Pte. Ltd", 
+        details = "Beneficiary: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2\nAddress: 6 Battery Road, Floor 6-01, 049909, Singapore, Singapore"
     )
 
     // 6. British Pound
     BankSection(
         title = "British Pound (GBP)", 
-        bankName = "Revolut Technologies Singapore", 
-        details = "Holder: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2"
+        bankName = "Revolut Technologies Singapore Pte. Ltd", 
+        details = "Beneficiary: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2\nAddress: 6 Battery Road, Floor 6-01, 049909, Singapore, Singapore"
     )
 
     // 7. Hong Kong Dollar
     BankSection(
         title = "Hong Kong Dollar (HKD)", 
-        bankName = "Revolut Technologies Singapore", 
-        details = "Holder: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2"
+        bankName = "Revolut Technologies Singapore Pte. Ltd", 
+        details = "Beneficiary: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2\nAddress: 6 Battery Road, Floor 6-01, 049909, Singapore, Singapore"
     )
 
     // 8. UAE Dirham
     BankSection(
         title = "UAE Dirham (AED)", 
-        bankName = "Revolut Technologies Singapore", 
-        details = "Holder: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2"
+        bankName = "Revolut Technologies Singapore Pte. Ltd", 
+        details = "Beneficiary: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2\nAddress: 6 Battery Road, Floor 6-01, 049909, Singapore, Singapore"
     )
 
     // 9. Israeli New Shekel
     BankSection(
         title = "Israeli New Shekel (ILS)", 
-        bankName = "Revolut Technologies Singapore", 
-        details = "Holder: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2"
+        bankName = "Revolut Technologies Singapore Pte. Ltd", 
+        details = "Beneficiary: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2\nAddress: 6 Battery Road, Floor 6-01, 049909, Singapore, Singapore"
     )
 
     // 10. Japanese Yen
     BankSection(
         title = "Japanese Yen (JPY)", 
-        bankName = "Revolut Technologies Singapore", 
-        details = "Holder: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2"
+        bankName = "Revolut Technologies Singapore Pte. Ltd", 
+        details = "Beneficiary: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2\nAddress: 6 Battery Road, Floor 6-01, 049909, Singapore, Singapore"
     )
 
     // 11. Polish Zloty
     BankSection(
         title = "Polish Zloty (PLN)", 
-        bankName = "Revolut Technologies Singapore", 
-        details = "Holder: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2"
+        bankName = "Revolut Technologies Singapore Pte. Ltd", 
+        details = "Beneficiary: Eliabe Matos Da Silva\nAccount: 6120621849\nBIC/SWIFT: REVOSGS2\nAddress: 6 Battery Road, Floor 6-01, 049909, Singapore, Singapore"
     )
 }
 
@@ -359,20 +370,30 @@ fun PayPalDetails() {
     
     Spacer(modifier = Modifier.height(24.dp))
     Button(onClick = {
+        // 1. Try Deep Link (May not work on all versions)
+        val deepLinkIntent = Intent(Intent.ACTION_VIEW, Uri.parse("paypal://send?recipient=stellar.foundation.us@gmail.com"))
+        
+        // 2. Try Opening App via Package
+        val packageIntent = context.packageManager.getLaunchIntentForPackage("com.paypal.android.p2pmobile")
+        
+        // 3. Fallback: Web Payment URL (Pre-filled)
+        val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=stellar.foundation.us@gmail.com&currency_code=USD"))
+
         try {
-            val intent = context.packageManager.getLaunchIntentForPackage("com.paypal.android.p2pmobile")
-            if (intent != null) {
-                context.startActivity(intent)
-            } else {
-                val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.paypal.com"))
+            context.startActivity(deepLinkIntent)
+        } catch (e: Exception) {
+            try {
+                if (packageIntent != null) {
+                    context.startActivity(packageIntent)
+                } else {
+                    context.startActivity(webIntent)
+                }
+            } catch (e2: Exception) {
                 context.startActivity(webIntent)
             }
-        } catch (e: Exception) {
-            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.paypal.com"))
-            context.startActivity(webIntent)
         }
     }) {
-        Text("Open PayPal App")
+        Text("Send Money via PayPal")
     }
 }
 
