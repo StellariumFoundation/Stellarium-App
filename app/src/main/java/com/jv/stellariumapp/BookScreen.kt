@@ -44,7 +44,8 @@ fun BookScreen() {
                         Text(
                             text = chapter.title, 
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
+                            textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
@@ -58,3 +59,6 @@ fun BookScreen() {
         }
     }
 }
+
+// THIS WAS MISSING
+data class Chapter(val title: String, val content: String)
