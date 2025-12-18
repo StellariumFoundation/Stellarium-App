@@ -7,53 +7,98 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 @Composable
 fun HomeScreen() {
+    val context = LocalContext.current
+    
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(24.dp), // Increased padding for cleaner look
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = "STELLARIUM FOUNDATION",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.displayLarge,
             color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "Do Good. Make Money. Have Fun.", fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
         
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Text(
+            text = "Do Good. Make Money. Have Fun.", 
+            style = MaterialTheme.typography.titleMedium.copy(fontStyle = FontStyle.Italic),
+            color = MaterialTheme.colorScheme.secondary
+        )
+        
+        Spacer(modifier = Modifier.height(32.dp))
         
         Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(text = "Our Mission", style = MaterialTheme.typography.titleLarge)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "We are dedicated to driving economic prosperity and social progress. We empower individuals through innovative solutions and strategic partnerships.")
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "We are dedicated to driving economic prosperity and social progress. We empower individuals through innovative solutions and strategic partnerships.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        Text(text = "THE LAW", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "THE LAW", 
+            style = MaterialTheme.typography.headlineMedium, 
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
         
         LawItem("Make Money", "Create value, do what you love, build thriving businesses.")
         LawItem("Have Fun", "Celebrate life, make friends, find happiness and self-fulfillment.")
         LawItem("Do Good", "Be benevolent, stand up, be a hero, and shine your light.")
+        
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Website Link
+        OutlinedButton(
+            onClick = {
+                val intent = android.content.Intent(
+                    android.content.Intent.ACTION_VIEW, 
+                    android.net.Uri.parse("https://www.stellarium.ddns-ip.net/home")
+                )
+                context.startActivity(intent)
+            }
+        ) {
+            Text("Visit Official Website")
+        }
     }
 }
 
 @Composable
 fun LawItem(title: String, desc: String) {
-    Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Text(text = "∆ $title", fontWeight = FontWeight.Bold)
-        Text(text = desc, style = MaterialTheme.typography.bodyMedium)
+    Column(
+        modifier = Modifier.padding(vertical = 12.dp).fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = "∆ $title", style = MaterialTheme.typography.titleLarge)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = desc, 
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center
+        )
     }
 }

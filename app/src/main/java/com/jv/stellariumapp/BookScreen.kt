@@ -5,10 +5,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-
-data class Chapter(val title: String, val content: String)
 
 @Composable
 fun BookScreen() {
@@ -20,17 +20,38 @@ fun BookScreen() {
         Chapter("The Goal", "To create a world where prosperity and opportunity are accessible to all through the 'Water' suite of products and robotics.")
     )
 
-    Column(modifier = Modifier.padding(16.dp)) {
-        Text(text = "The Stellarium Book", style = MaterialTheme.typography.headlineMedium)
+    Column(
+        modifier = Modifier.padding(16.dp).fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "The Stellarium Book", 
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center
+        )
         Spacer(modifier = Modifier.height(16.dp))
         
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             items(chapters) { chapter ->
-                Card {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(text = chapter.title, style = MaterialTheme.typography.titleMedium)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = chapter.content)
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = chapter.title, 
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = chapter.content, 
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
             }

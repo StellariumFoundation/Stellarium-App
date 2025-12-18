@@ -5,31 +5,73 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import com.jv.stellariumapp.R
 
-// Define the FontFamily using your renamed file
+// Using the provided font, but falling back to Serif for Titles to match the website
 val Frutiger = FontFamily(
-    // We map your single file to both Normal and Medium weights for now
     Font(R.font.neue_frutiger_world_regular, FontWeight.Normal),
     Font(R.font.neue_frutiger_world_regular, FontWeight.Medium),
-    Font(R.font.neue_frutiger_world_regular, FontWeight.Bold) // Using the same file for bold for now (system will simulate bold)
+    Font(R.font.neue_frutiger_world_regular, FontWeight.Bold)
 )
 
 val Typography = Typography(
-    displayLarge = TextStyle(fontFamily = Frutiger, fontWeight = FontWeight.Normal, fontSize = 57.sp),
-    displayMedium = TextStyle(fontFamily = Frutiger, fontWeight = FontWeight.Normal, fontSize = 45.sp),
-    displaySmall = TextStyle(fontFamily = Frutiger, fontWeight = FontWeight.Normal, fontSize = 36.sp),
-    headlineLarge = TextStyle(fontFamily = Frutiger, fontWeight = FontWeight.Normal, fontSize = 32.sp),
-    headlineMedium = TextStyle(fontFamily = Frutiger, fontWeight = FontWeight.Normal, fontSize = 28.sp),
-    headlineSmall = TextStyle(fontFamily = Frutiger, fontWeight = FontWeight.Normal, fontSize = 24.sp),
-    titleLarge = TextStyle(fontFamily = Frutiger, fontWeight = FontWeight.Normal, fontSize = 22.sp),
-    titleMedium = TextStyle(fontFamily = Frutiger, fontWeight = FontWeight.Medium, fontSize = 16.sp),
-    titleSmall = TextStyle(fontFamily = Frutiger, fontWeight = FontWeight.Medium, fontSize = 14.sp),
-    bodyLarge = TextStyle(fontFamily = Frutiger, fontWeight = FontWeight.Normal, fontSize = 16.sp),
-    bodyMedium = TextStyle(fontFamily = Frutiger, fontWeight = FontWeight.Normal, fontSize = 14.sp),
-    bodySmall = TextStyle(fontFamily = Frutiger, fontWeight = FontWeight.Normal, fontSize = 12.sp),
-    labelLarge = TextStyle(fontFamily = Frutiger, fontWeight = FontWeight.Medium, fontSize = 14.sp),
-    labelMedium = TextStyle(fontFamily = Frutiger, fontWeight = FontWeight.Medium, fontSize = 12.sp),
-    labelSmall = TextStyle(fontFamily = Frutiger, fontWeight = FontWeight.Medium, fontSize = 11.sp)
+    // Big Titles (e.g. "STELLARIUM FOUNDATION") - Serif to match website
+    displayLarge = TextStyle(
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.Normal,
+        fontSize = 32.sp, // Reduced from 57
+        textAlign = TextAlign.Center
+    ),
+    displayMedium = TextStyle(
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.Normal,
+        fontSize = 28.sp, // Reduced from 45
+        textAlign = TextAlign.Center
+    ),
+    headlineLarge = TextStyle(
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.Normal,
+        fontSize = 24.sp, // Reduced from 32
+        textAlign = TextAlign.Center
+    ),
+    headlineMedium = TextStyle(
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.Normal,
+        fontSize = 20.sp, // Reduced from 28
+        textAlign = TextAlign.Center
+    ),
+    // Subtitles
+    titleLarge = TextStyle(
+        fontFamily = Frutiger,
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp, // Reduced from 22
+        textAlign = TextAlign.Center
+    ),
+    titleMedium = TextStyle(
+        fontFamily = Frutiger,
+        fontWeight = FontWeight.Medium,
+        fontSize = 16.sp,
+        textAlign = TextAlign.Center
+    ),
+    // Body Text
+    bodyLarge = TextStyle(
+        fontFamily = Frutiger,
+        fontWeight = FontWeight.Normal,
+        fontSize = 14.sp, // Reduced from 16
+        textAlign = TextAlign.Center
+    ),
+    bodyMedium = TextStyle(
+        fontFamily = Frutiger,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp, // Reduced from 14
+        textAlign = TextAlign.Center
+    ),
+    labelLarge = TextStyle(
+        fontFamily = Frutiger,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp,
+        textAlign = TextAlign.Center
+    )
 )
