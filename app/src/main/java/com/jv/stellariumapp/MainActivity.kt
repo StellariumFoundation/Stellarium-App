@@ -80,7 +80,7 @@ fun StellariumApp() {
                 composable(Screen.Home.route) { HomeScreen() }
                 composable(Screen.Books.route) { BookScreen() }
                 composable(Screen.Quiz.route) { QuizScreen() }
-                composable(Screen.Sponsor.route) { SponsorScreen() }
+                composable(Screen.Sponsor.route) { SponsorScreen(navController = navController) }
                 composable(Screen.Contact.route) { ContactScreen() }
             }
         }
