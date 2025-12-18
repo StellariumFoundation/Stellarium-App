@@ -32,6 +32,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun StellariumApp() {
     val navController = rememberNavController()
+    // Ensure all screens are listed here
     val items = listOf(
         Screen.Home,
         Screen.Books,
@@ -44,14 +45,14 @@ fun StellariumApp() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(StellariumGradient) // <--- THE RAINBOW GRADIENT
+            .background(StellariumGradient)
     ) {
         Scaffold(
             // Make Scaffold Transparent so gradient shows
             containerColor = Color.Transparent,
             bottomBar = {
                 NavigationBar(
-                    containerColor = Color(0xCC000000) // Semi-transparent black bottom bar
+                    containerColor = Color(0xCC000000)
                 ) {
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val currentDestination = navBackStackEntry?.destination
@@ -80,7 +81,10 @@ fun StellariumApp() {
                 composable(Screen.Home.route) { HomeScreen() }
                 composable(Screen.Books.route) { BookScreen() }
                 composable(Screen.Quiz.route) { QuizScreen() }
+                
+                // IMPORTANT: Pass the navController here
                 composable(Screen.Sponsor.route) { SponsorScreen(navController = navController) }
+                
                 composable(Screen.Contact.route) { ContactScreen() }
             }
         }

@@ -3,7 +3,6 @@ package com.jv.stellariumapp
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -32,7 +31,9 @@ import androidx.navigation.NavController
 fun SponsorScreen(navController: NavController) {
     var showSheet by remember { mutableStateOf(false) }
     var selectedMethod by remember { mutableStateOf<PaymentMethod?>(null) }
-    val sheetState = rememberModalBottomSheetState()
+    
+    // Fix: skipPartiallyExpanded ensures the sheet opens fully and doesn't get stuck
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     Column(
         modifier = Modifier
@@ -74,7 +75,15 @@ fun SponsorScreen(navController: NavController) {
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = { navController.navigate(Screen.Contact.route) }) {
+                
+                // Button to go to Contact Screen
+                Button(onClick = { 
+                    try {
+                        navController.navigate(Screen.Contact.route) 
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }) {
                     Text("Contact Us for a Deal")
                 }
             }
@@ -120,7 +129,7 @@ fun SponsorScreen(navController: NavController) {
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             PaymentGridItem(
-                icon = Icons.Default.AttachMoney, // Placeholder for Patreon
+                icon = Icons.Default.AttachMoney, 
                 label = "Patreon",
                 modifier = Modifier.weight(1f)
             ) {
@@ -142,13 +151,15 @@ fun SponsorScreen(navController: NavController) {
     if (showSheet && selectedMethod != null) {
         ModalBottomSheet(
             onDismissRequest = { showSheet = false },
-            sheetState = sheetState
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface, // Ensure it has a background
+            contentColor = MaterialTheme.colorScheme.onSurface
         ) {
             // Content inside the sheet
             Column(
                 modifier = Modifier
                     .padding(24.dp)
-                    .verticalScroll(rememberScrollState()) // Allow scrolling for long bank lists
+                    .verticalScroll(rememberScrollState())
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
