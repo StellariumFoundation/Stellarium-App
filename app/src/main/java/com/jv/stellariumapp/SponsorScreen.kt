@@ -247,7 +247,7 @@ fun BankDetails() {
     // 3. Brazilian Real
     BankSection(
         title = "Brazilian Real (BRL)", 
-        bankName = "PIX Key", 
+        bankName = "Banking Key", 
         details = "stellar.foundation.us@gmail.com"
     )
 

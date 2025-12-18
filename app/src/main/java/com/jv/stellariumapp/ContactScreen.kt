@@ -13,13 +13,17 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import android.widget.Toast
-import android.util.Log // Import Logger
+import android.content.Intent
+import android.net.Uri
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 @Composable
 fun ContactScreen() {
@@ -117,7 +121,10 @@ to the Stellarium Foundation and Radiohead.""",
                             contact = ""
                             message = ""
                         } else {
-                            Toast.makeText(context, "Failed. Check internet or permissions.", Toast.LENGTH_SHORT).show()
+                            // FALLBACK: If API fails, let user open browser
+                            Toast.makeText(context, "Opening Browser to Send...", Toast.LENGTH_SHORT).show()
+                            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://docs.google.com/forms/d/e/1FAIpQLSfIy7Wu4pZM-JsW146zYD1W_Y_tUE5EU4iVjkOu1Es2lvrDmQ/viewform"))
+                            context.startActivity(browserIntent)
                         }
                     }
                 } else {
@@ -142,14 +149,17 @@ to the Stellarium Foundation and Radiohead.""",
 
 suspend fun sendToGoogleForm(name: String, contact: String, message: String): Boolean {
     return withContext(Dispatchers.IO) {
+        var conn: HttpURLConnection? = null
         try {
             val formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSfIy7Wu4pZM-JsW146zYD1W_Y_tUE5EU4iVjkOu1Es2lvrDmQ/formResponse"
+            val viewUrl = "https://docs.google.com/forms/d/e/1FAIpQLSfIy7Wu4pZM-JsW146zYD1W_Y_tUE5EU4iVjkOu1Es2lvrDmQ/viewform"
             
             val finalMessage = StringBuilder()
             if (name.isNotBlank()) finalMessage.append("Name/Institution: $name\n")
             if (contact.isNotBlank()) finalMessage.append("Contact Back: $contact\n")
             finalMessage.append("\nMessage:\n$message")
             
+            // Google needs a valid looking email if the field is "Email"
             val emailToSend = if (contact.contains("@") && contact.contains(".")) contact else "anonymous@stellarium.app"
 
             val postData = StringBuilder()
@@ -157,35 +167,51 @@ suspend fun sendToGoogleForm(name: String, contact: String, message: String): Bo
             postData.append("&")
             postData.append(URLEncoder.encode("entry.474494390", "UTF-8") + "=" + URLEncoder.encode(finalMessage.toString(), "UTF-8"))
             
-            // FIX: Add pageHistory=0 (Required by Google Forms validation)
+            // Hidden fields to mimic real browser
             postData.append("&")
             postData.append(URLEncoder.encode("pageHistory", "UTF-8") + "=" + URLEncoder.encode("0", "UTF-8"))
+            postData.append("&")
+            postData.append(URLEncoder.encode("fvv", "UTF-8") + "=" + URLEncoder.encode("1", "UTF-8"))
 
             val url = URL(formUrl)
-            val conn = url.openConnection() as HttpURLConnection
+            conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.doOutput = true
-            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+            conn.doInput = true
+            conn.instanceFollowRedirects = true
             
-            // Random User Agent
+            // CRITICAL HEADERS FOR GOOGLE FORMS
+            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+            conn.setRequestProperty("Referer", viewUrl) // <--- THIS OFTEN FIXES IT
+            
             val userAgents = listOf(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36"
+                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
             )
             conn.setRequestProperty("User-Agent", userAgents.random())
-            
+
             val outputBytes = postData.toString().toByteArray(Charsets.UTF_8)
-            conn.outputStream.write(outputBytes)
+            conn.outputStream.use { os ->
+                os.write(outputBytes)
+                os.flush()
+            }
             
             val responseCode = conn.responseCode
-            Log.d("ContactScreen", "Response Code: $responseCode")
+            // Read response to close stream cleanly
+            try {
+                BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
+            } catch (e: Exception) { /* Ignored */ }
+
+            Log.d("ContactForm", "Code: $responseCode")
             
-            // Google Forms returns 200 on success
-            responseCode == 200
+            // 200 = Success
+            return@withContext responseCode == 200
+            
         } catch (e: Exception) {
-            Log.e("ContactScreen", "Error sending message", e)
-            false
+            Log.e("ContactForm", "Failed: ${e.message}")
+            return@withContext false
+        } finally {
+            conn?.disconnect()
         }
     }
 }
