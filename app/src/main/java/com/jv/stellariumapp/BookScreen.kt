@@ -1,9 +1,12 @@
 package com.jv.stellariumapp
 
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
+import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
@@ -14,7 +17,6 @@ import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.OpenInNew
@@ -54,14 +56,12 @@ data class LiteratureBook(
 fun BookScreen() {
     val context = LocalContext.current
     
-    // State
     var allBooks by remember { mutableStateOf<List<LiteratureBook>>(emptyList()) }
     var groupedBooks by remember { mutableStateOf<Map<String, List<LiteratureBook>>>(emptyMap()) }
     var selectedBook by remember { mutableStateOf<LiteratureBook?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
-    // --- Load and Organize Data ---
     LaunchedEffect(Unit) {
         try {
             val books = loadBooksFromAssets(context)
@@ -75,7 +75,6 @@ fun BookScreen() {
         }
     }
 
-    // --- Navigation Logic ---
     if (selectedBook != null) {
         BackHandler { selectedBook = null }
         BookReaderView(
@@ -137,12 +136,10 @@ fun organizeBooksByCategory(books: List<LiteratureBook>): Map<String, List<Liter
 
     for (line in lines) {
         val trimmed = line.trim()
-        
         if (trimmed.startsWith("**") && trimmed.endsWith("**") && trimmed.length > 4) {
             currentCategory = trimmed.removeSurrounding("**").trim()
             continue
         }
-
         val matcher = idPattern.matcher(trimmed)
         if (matcher.find()) {
             val extractedId = matcher.group(1)
@@ -204,7 +201,6 @@ fun BookListView(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // --- Core PDFs Section ---
                 item {
                     Text(
                         text = "Official Books (PDF)",
@@ -214,48 +210,28 @@ fun BookListView(
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     
-                    // The Stellarium Book PDF Card
+                    // Stellarium Book (With Links)
                     PDFBookCard(
                         title = "The Stellarium Book",
                         fileName = "The.Stellarium.Book.pdf",
-                        context = context
+                        context = context,
+                        showLinks = true
                     )
                     
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // The Stellarium Society PDF Card
+                    // Society Book (No Links)
                     PDFBookCard(
-                        title = "Stellarium Society",
+                        title = "The Stellarium Society",
                         fileName = "Stellarium.Society.pdf",
-                        context = context
+                        context = context,
+                        showLinks = false
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // External Links for Purchase/Subscription
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        Button(onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.amazon.com/dp/B0FLPSQ6ZS"))
-                            context.startActivity(intent)
-                        }) {
-                            Text("Buy on Amazon")
-                        }
-                        Button(onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.everand.com/book/897831454/The-Stellarium-Book"))
-                            context.startActivity(intent)
-                        }) {
-                            Text("Read on Everand")
-                        }
-                    }
-                    
                     Spacer(modifier = Modifier.height(24.dp))
                     Divider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
 
-                // --- Render Categories ---
                 if (groupedBooks.isNotEmpty()) {
                     groupedBooks.forEach { (category, books) ->
                         if (books.isNotEmpty()) {
@@ -284,7 +260,7 @@ fun BookListView(
 }
 
 @Composable
-fun PDFBookCard(title: String, fileName: String, context: Context) {
+fun PDFBookCard(title: String, fileName: String, context: Context, showLinks: Boolean) {
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -304,18 +280,37 @@ fun PDFBookCard(title: String, fileName: String, context: Context) {
             Spacer(modifier = Modifier.height(12.dp))
             
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                // Open Button
                 FilledTonalButton(onClick = { openPdfFromAssets(context, fileName) }) {
                     Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Open")
                 }
-                
-                // Download Button
                 OutlinedButton(onClick = { savePdfToDownloads(context, fileName) }) {
                     Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Save")
+                }
+            }
+
+            // External Links (Only for The Stellarium Book)
+            if (showLinks) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    TextButton(onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.amazon.com/dp/B0FLPSQ6ZS"))
+                        context.startActivity(intent)
+                    }) {
+                        Text("Buy on Amazon")
+                    }
+                    TextButton(onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.everand.com/book/897831454/The-Stellarium-Book"))
+                        context.startActivity(intent)
+                    }) {
+                        Text("Read on Everand")
+                    }
                 }
             }
         }
@@ -335,7 +330,7 @@ fun BookCard(book: LiteratureBook, onClick: (LiteratureBook) -> Unit) {
             modifier = Modifier
                 .padding(20.dp)
                 .fillMaxWidth(), 
-            horizontalAlignment = Alignment.CenterHorizontally // Enforce Center Alignment
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = book.title,
@@ -391,9 +386,8 @@ fun BookReaderView(book: LiteratureBook, onBack: () -> Unit) {
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally // Center content
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Render the Content using the Markdown Parser
             MarkdownText(content = book.content)
             
             Spacer(modifier = Modifier.height(32.dp))
@@ -417,8 +411,6 @@ fun BookReaderView(book: LiteratureBook, onBack: () -> Unit) {
     }
 }
 
-// --- Custom Markdown Parser & Renderer ---
-
 @Composable
 fun MarkdownText(content: String) {
     val context = LocalContext.current
@@ -428,11 +420,10 @@ fun MarkdownText(content: String) {
         text = styledText,
         style = MaterialTheme.typography.bodyLarge.copy(
             color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center, // CENTRALIZED MARKDOWN TEXT
+            textAlign = TextAlign.Center, // Centralized
             lineHeight = 24.sp
         ),
         onClick = { offset ->
-            // Handle Link Clicks
             styledText.getStringAnnotations(tag = "URL", start = offset, end = offset)
                 .firstOrNull()?.let { annotation ->
                     try {
@@ -453,7 +444,6 @@ fun parseMarkdown(markdown: String): androidx.compose.ui.text.AnnotatedString {
         for (line in lines) {
             val trimmedLine = line.trim()
 
-            // 1. Headers (#)
             if (trimmedLine.startsWith("#")) {
                 val level = trimmedLine.takeWhile { it == '#' }.length
                 val text = trimmedLine.substring(level).trim()
@@ -472,7 +462,6 @@ fun parseMarkdown(markdown: String): androidx.compose.ui.text.AnnotatedString {
                 continue
             }
 
-            // 2. Bold Lines (Specific for Stellarium **Title**)
             if (trimmedLine.startsWith("**") && trimmedLine.endsWith("**")) {
                 if (length > 0) append("\n\n")
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 18.sp)) {
@@ -481,8 +470,7 @@ fun parseMarkdown(markdown: String): androidx.compose.ui.text.AnnotatedString {
                 continue
             }
 
-            // 3. Standard Body Text (mixed bold and links)
-            if (length > 0) append("\n") // Newline between paragraphs
+            if (length > 0) append("\n") 
             
             val regex = Regex("(\\[(.*?)\\]\\((.*?)\\))|(\\*\\*(.*?)\\*\\*)")
             
@@ -495,7 +483,6 @@ fun parseMarkdown(markdown: String): androidx.compose.ui.text.AnnotatedString {
                 }
 
                 if (match.groups[1] != null) { 
-                    // LINK: [Text](Url)
                     val linkText = match.groups[2]?.value ?: ""
                     val linkUrl = match.groups[3]?.value ?: ""
                     
@@ -511,7 +498,6 @@ fun parseMarkdown(markdown: String): androidx.compose.ui.text.AnnotatedString {
                     }
                     pop()
                 } else if (match.groups[4] != null) { 
-                    // BOLD: **Text**
                     val boldText = match.groups[5]?.value ?: ""
                     withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
                         append(boldText)
@@ -527,7 +513,7 @@ fun parseMarkdown(markdown: String): androidx.compose.ui.text.AnnotatedString {
     }
 }
 
-// --- PDF Helpers ---
+// --- UPDATED PDF HELPERS USING MEDIASTORE (Fixes "Not saving") ---
 
 fun openPdfFromAssets(context: Context, fileName: String) {
     try {
@@ -540,13 +526,11 @@ fun openPdfFromAssets(context: Context, fileName: String) {
             }
         }
         
-        // Use FileProvider to share file securely
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
         val intent = Intent(Intent.ACTION_VIEW)
         intent.setDataAndType(uri, "application/pdf")
         intent.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NO_HISTORY
         
-        // Try to start activity
         val chooser = Intent.createChooser(intent, "Open PDF")
         context.startActivity(chooser)
     } catch (e: Exception) {
@@ -557,15 +541,37 @@ fun openPdfFromAssets(context: Context, fileName: String) {
 
 fun savePdfToDownloads(context: Context, fileName: String) {
     try {
-        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val file = File(downloadsDir, fileName)
-        
-        context.assets.open(fileName).use { input ->
-            FileOutputStream(file).use { output ->
-                input.copyTo(output)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Modern Android (API 29+) -> Use MediaStore
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
             }
+            val resolver = context.contentResolver
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+            
+            if (uri != null) {
+                resolver.openOutputStream(uri).use { output ->
+                    context.assets.open(fileName).use { input ->
+                        input.copyTo(output!!)
+                    }
+                }
+                Toast.makeText(context, "Saved to Downloads", Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(context, "Error: Could not create file", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            // Legacy Android (< API 29) -> Direct File Access
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val file = File(downloadsDir, fileName)
+            context.assets.open(fileName).use { input ->
+                FileOutputStream(file).use { output ->
+                    input.copyTo(output)
+                }
+            }
+            Toast.makeText(context, "Saved to Downloads: ${file.absolutePath}", Toast.LENGTH_LONG).show()
         }
-        Toast.makeText(context, "Saved to Downloads: $fileName", Toast.LENGTH_LONG).show()
     } catch (e: Exception) {
         Toast.makeText(context, "Error saving PDF: ${e.message}", Toast.LENGTH_LONG).show()
         e.printStackTrace()
