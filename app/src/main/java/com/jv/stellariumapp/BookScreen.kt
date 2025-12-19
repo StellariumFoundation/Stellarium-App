@@ -3,8 +3,9 @@ package com.jv.stellariumapp
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Environment
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,6 +14,10 @@ import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,8 +33,11 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import org.json.JSONObject
 import java.io.BufferedReader
+import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.util.regex.Pattern
 
@@ -62,7 +70,7 @@ fun BookScreen() {
             isLoading = false
         } catch (e: Exception) {
             e.printStackTrace()
-            errorMsg = "Error loading library: ${e.message}"
+            errorMsg = "Error loading library. Ensure 'assets/literature.json' exists.\n${e.message}"
             isLoading = false
         }
     }
@@ -77,7 +85,7 @@ fun BookScreen() {
     } else {
         BookListView(
             groupedBooks = groupedBooks,
-            allBooks = allBooks, // Fallback if grouping fails
+            allBooks = allBooks,
             isLoading = isLoading,
             error = errorMsg,
             onBookClick = { selectedBook = it }
@@ -104,7 +112,7 @@ fun loadBooksFromAssets(context: Context): List<LiteratureBook> {
             val title = bookObj.optString("title", "Untitled")
             val content = bookObj.optString("content", "")
             val url = bookObj.optString("notion_url", "")
-            val desc = bookObj.optString("comment_from_index", "").ifBlank { "Tap to read." }
+            val desc = bookObj.optString("comment_from_index", "Tap to read full content.")
             
             result.add(LiteratureBook(key, title, desc, content, url))
         }
@@ -115,35 +123,29 @@ fun loadBooksFromAssets(context: Context): List<LiteratureBook> {
 }
 
 fun organizeBooksByCategory(books: List<LiteratureBook>): Map<String, List<LiteratureBook>> {
-    // 1. Find the "Index" book (Stellarium Literature) to parse the structure
-    val indexBook = books.find { it.title.contains("Stellarium Literature", ignoreCase = true) } 
-        ?: return mapOf("All Literature" to books)
+    val indexBook = books.find { it.title.trim().equals("Stellarium Literature", ignoreCase = true) } 
+        ?: return mapOf("All Literature" to books.sortedBy { it.title })
 
-    val categorizedMap = mutableMapOf<String, MutableList<LiteratureBook>>()
+    val categorizedMap = linkedMapOf<String, MutableList<LiteratureBook>>()
     val booksById = books.associateBy { it.id }
     val assignedIds = mutableSetOf<String>()
+    assignedIds.add(indexBook.id)
 
-    // 2. Parse the Index content line by line to find Headers and Links
     val lines = indexBook.content.lines()
     var currentCategory = "General"
-
-    // Regex to find links like [Title](...ID.md)
-    // We look for the ID at the end of the URL path before .md
-    val linkPattern = Pattern.compile(".*\\[(.*?)\\]\\((.*?)(\\w{32})\\.md\\).*")
+    val idPattern = Pattern.compile("([a-f0-9]{32})\\.md")
 
     for (line in lines) {
         val trimmed = line.trim()
         
-        // Detect Category Headers (Bold text like **The Principles**)
         if (trimmed.startsWith("**") && trimmed.endsWith("**") && trimmed.length > 4) {
-            currentCategory = trimmed.removeSurrounding("**")
+            currentCategory = trimmed.removeSurrounding("**").trim()
             continue
         }
 
-        // Detect Links to Books
-        val matcher = linkPattern.matcher(trimmed)
+        val matcher = idPattern.matcher(trimmed)
         if (matcher.find()) {
-            val extractedId = matcher.group(3) // The 32-char ID
+            val extractedId = matcher.group(1)
             val book = booksById[extractedId]
             if (book != null) {
                 categorizedMap.getOrPut(currentCategory) { mutableListOf() }.add(book)
@@ -152,10 +154,9 @@ fun organizeBooksByCategory(books: List<LiteratureBook>): Map<String, List<Liter
         }
     }
 
-    // 3. Add any books that weren't linked in the index to "Other Resources"
-    val unassigned = books.filter { !assignedIds.contains(it.id) && it.id != indexBook.id }
+    val unassigned = books.filter { !assignedIds.contains(it.id) }
     if (unassigned.isNotEmpty()) {
-        categorizedMap["Other Resources"] = unassigned.toMutableList()
+        categorizedMap.getOrPut("Other Resources") { mutableListOf() }.addAll(unassigned)
     }
 
     return categorizedMap
@@ -171,6 +172,8 @@ fun BookListView(
     error: String?,
     onBookClick: (LiteratureBook) -> Unit
 ) {
+    val context = LocalContext.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -192,37 +195,127 @@ fun BookListView(
             }
         } else if (error != null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = error, color = MaterialTheme.colorScheme.error)
+                Text(text = error, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
             }
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Render Categories
-                groupedBooks.forEach { (category, books) ->
-                    if (books.isNotEmpty()) {
-                        item {
-                            Text(
-                                text = category,
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.tertiary,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp)
-                            )
+                // --- Core PDFs Section ---
+                item {
+                    Text(
+                        text = "Official Books (PDF)",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.tertiary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    
+                    // The Stellarium Book PDF Card
+                    PDFBookCard(
+                        title = "The Stellarium Book",
+                        fileName = "The.Stellarium.Book.pdf",
+                        context = context
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // The Stellarium Society PDF Card
+                    PDFBookCard(
+                        title = "Stellarium Society",
+                        fileName = "Stellarium.Society.pdf",
+                        context = context
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // External Links for Purchase/Subscription
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Button(onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.amazon.com/dp/B0FLPSQ6ZS"))
+                            context.startActivity(intent)
+                        }) {
+                            Text("Buy on Amazon")
                         }
-                        items(books) { book ->
-                            BookCard(book, onBookClick)
+                        Button(onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.everand.com/book/897831454/The-Stellarium-Book"))
+                            context.startActivity(intent)
+                        }) {
+                            Text("Read on Everand")
                         }
                     }
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Divider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
+
+                // --- Render Categories ---
+                if (groupedBooks.isNotEmpty()) {
+                    groupedBooks.forEach { (category, books) ->
+                        if (books.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = category,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 16.dp, bottom = 8.dp)
+                                )
+                            }
+                            items(books) { book ->
+                                BookCard(book, onBookClick)
+                            }
+                        }
+                    }
+                } else {
+                    items(allBooks) { book -> BookCard(book, onBookClick) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PDFBookCard(title: String, fileName: String, context: Context) {
+    OutlinedCard(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(Icons.Default.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                // Open Button
+                FilledTonalButton(onClick = { openPdfFromAssets(context, fileName) }) {
+                    Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Open")
                 }
                 
-                // Fallback if grouping found nothing (e.g. empty index)
-                if (groupedBooks.isEmpty() && allBooks.isNotEmpty()) {
-                    items(allBooks) { book -> BookCard(book, onBookClick) }
+                // Download Button
+                OutlinedButton(onClick = { savePdfToDownloads(context, fileName) }) {
+                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Save")
                 }
             }
         }
@@ -240,9 +333,9 @@ fun BookCard(book: LiteratureBook, onClick: (LiteratureBook) -> Unit) {
     ) {
         Column(
             modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(), // Ensure contents fill width for centering
-            horizontalAlignment = Alignment.CenterHorizontally // Center horizontally
+                .padding(20.dp)
+                .fillMaxWidth(), 
+            horizontalAlignment = Alignment.CenterHorizontally // Enforce Center Alignment
         ) {
             Text(
                 text = book.title,
@@ -251,8 +344,8 @@ fun BookCard(book: LiteratureBook, onClick: (LiteratureBook) -> Unit) {
                 color = MaterialTheme.colorScheme.primary,
                 textAlign = TextAlign.Center
             )
-            if (book.description.isNotBlank()) {
-                Spacer(modifier = Modifier.height(6.dp))
+            if (book.description.isNotBlank() && book.description != "null") {
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = book.description,
                     style = MaterialTheme.typography.bodyMedium,
@@ -297,7 +390,8 @@ fun BookReaderView(book: LiteratureBook, onBack: () -> Unit) {
                 .padding(padding)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(24.dp)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally // Center content
         ) {
             // Render the Content using the Markdown Parser
             MarkdownText(content = book.content)
@@ -315,7 +409,7 @@ fun BookReaderView(book: LiteratureBook, onBack: () -> Unit) {
                     },
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 ) {
-                    Text("Read on Notion")
+                    Text("Read Original on Notion")
                 }
             }
             Spacer(modifier = Modifier.height(48.dp))
@@ -334,7 +428,8 @@ fun MarkdownText(content: String) {
         text = styledText,
         style = MaterialTheme.typography.bodyLarge.copy(
             color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Start // Reader text usually looks better aligned start
+            textAlign = TextAlign.Center, // CENTRALIZED MARKDOWN TEXT
+            lineHeight = 24.sp
         ),
         onClick = { offset ->
             // Handle Link Clicks
@@ -356,19 +451,20 @@ fun parseMarkdown(markdown: String): androidx.compose.ui.text.AnnotatedString {
         val lines = markdown.lines()
         
         for (line in lines) {
+            val trimmedLine = line.trim()
+
             // 1. Headers (#)
-            if (line.startsWith("#")) {
-                val level = line.takeWhile { it == '#' }.length
-                val text = line.substring(level).trim()
+            if (trimmedLine.startsWith("#")) {
+                val level = trimmedLine.takeWhile { it == '#' }.length
+                val text = trimmedLine.substring(level).trim()
                 
-                // Add extra newline before headers
                 if (length > 0) append("\n\n")
                 
                 withStyle(
                     style = SpanStyle(
-                        fontSize = if (level == 1) 24.sp else 20.sp,
+                        fontSize = if (level == 1) 26.sp else 22.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White // Force white for headers in dark theme
+                        color = Color.White 
                     )
                 ) {
                     append(text)
@@ -376,59 +472,102 @@ fun parseMarkdown(markdown: String): androidx.compose.ui.text.AnnotatedString {
                 continue
             }
 
-            // 2. Standard Line
+            // 2. Bold Lines (Specific for Stellarium **Title**)
+            if (trimmedLine.startsWith("**") && trimmedLine.endsWith("**")) {
+                if (length > 0) append("\n\n")
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 18.sp)) {
+                    append(trimmedLine.removeSurrounding("**"))
+                }
+                continue
+            }
+
+            // 3. Standard Body Text (mixed bold and links)
             if (length > 0) append("\n") // Newline between paragraphs
             
-            var currentIndex = 0
-            // Regex for Bold (**text**) and Links ([text](url))
-            // We use a simple loop to find matches in order
-            val boldRegex = Regex("\\*\\*(.*?)\\*\\*")
-            val linkRegex = Regex("\\[(.*?)\\]\\((.*?)\\)")
+            val regex = Regex("(\\[(.*?)\\]\\((.*?)\\))|(\\*\\*(.*?)\\*\\*)")
             
-            // We process the line character by character (simplified logic for mixing bold/links)
-            // For a robust implementation, usually a full parser is needed. 
-            // Here we prioritize Links then Bold for an MVP.
-            
-            var remainingLine = line
-            
-            while (remainingLine.isNotEmpty()) {
-                val linkMatch = linkRegex.find(remainingLine)
-                val boldMatch = boldRegex.find(remainingLine)
-                
-                // Find which comes first
-                val firstMatch = listOfNotNull(linkMatch, boldMatch).minByOrNull { it.range.first }
-                
-                if (firstMatch == null) {
-                    append(remainingLine)
-                    break
+            var lastIndex = 0
+            val matches = regex.findAll(trimmedLine)
+
+            for (match in matches) {
+                if (match.range.first > lastIndex) {
+                    append(trimmedLine.substring(lastIndex, match.range.first))
                 }
-                
-                // Append text before the match
-                append(remainingLine.substring(0, firstMatch.range.first))
-                
-                if (firstMatch == linkMatch) {
-                    val linkText = linkMatch!!.groupValues[1]
-                    val linkUrl = linkMatch.groupValues[2]
+
+                if (match.groups[1] != null) { 
+                    // LINK: [Text](Url)
+                    val linkText = match.groups[2]?.value ?: ""
+                    val linkUrl = match.groups[3]?.value ?: ""
                     
                     pushStringAnnotation(tag = "URL", annotation = linkUrl)
                     withStyle(
                         style = SpanStyle(
-                            color = Color(0xFF64B5F6), // Light Blue for links
-                            textDecoration = TextDecoration.Underline
+                            color = Color(0xFF64B5F6), 
+                            textDecoration = TextDecoration.Underline,
+                            fontWeight = FontWeight.Bold
                         )
                     ) {
                         append(linkText)
                     }
                     pop()
-                } else {
-                    val boldText = boldMatch!!.groupValues[1]
+                } else if (match.groups[4] != null) { 
+                    // BOLD: **Text**
+                    val boldText = match.groups[5]?.value ?: ""
                     withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
                         append(boldText)
                     }
                 }
-                
-                remainingLine = remainingLine.substring(firstMatch.range.last + 1)
+                lastIndex = match.range.last + 1
+            }
+            
+            if (lastIndex < trimmedLine.length) {
+                append(trimmedLine.substring(lastIndex))
             }
         }
+    }
+}
+
+// --- PDF Helpers ---
+
+fun openPdfFromAssets(context: Context, fileName: String) {
+    try {
+        val file = File(context.cacheDir, fileName)
+        if (!file.exists()) {
+            context.assets.open(fileName).use { input ->
+                FileOutputStream(file).use { output ->
+                    input.copyTo(output)
+                }
+            }
+        }
+        
+        // Use FileProvider to share file securely
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+        val intent = Intent(Intent.ACTION_VIEW)
+        intent.setDataAndType(uri, "application/pdf")
+        intent.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NO_HISTORY
+        
+        // Try to start activity
+        val chooser = Intent.createChooser(intent, "Open PDF")
+        context.startActivity(chooser)
+    } catch (e: Exception) {
+        Toast.makeText(context, "Error opening PDF: ${e.message}", Toast.LENGTH_LONG).show()
+        e.printStackTrace()
+    }
+}
+
+fun savePdfToDownloads(context: Context, fileName: String) {
+    try {
+        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val file = File(downloadsDir, fileName)
+        
+        context.assets.open(fileName).use { input ->
+            FileOutputStream(file).use { output ->
+                input.copyTo(output)
+            }
+        }
+        Toast.makeText(context, "Saved to Downloads: $fileName", Toast.LENGTH_LONG).show()
+    } catch (e: Exception) {
+        Toast.makeText(context, "Error saving PDF: ${e.message}", Toast.LENGTH_LONG).show()
+        e.printStackTrace()
     }
 }
