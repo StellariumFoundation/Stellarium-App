@@ -36,32 +36,33 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
-import org.json.JSONObject
+import org.json.JSONArray
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.util.regex.Pattern
 
-// --- Data Model ---
-data class LiteratureBook(
-    val id: String,
-    val title: String,
-    val description: String,
-    val content: String,
-    val notionUrl: String
+// --- Data Model matching your Interface ---
+data class StellariumDocument(
+    val title: String,               // Required
+    val content: String,             // Required (Markdown)
+    val notionUrl: String?,          // Optional
+    val commentFromIndex: String?    // Optional
 )
 
 @Composable
 fun BookScreen() {
     val context = LocalContext.current
     
-    var allBooks by remember { mutableStateOf<List<LiteratureBook>>(emptyList()) }
-    var groupedBooks by remember { mutableStateOf<Map<String, List<LiteratureBook>>>(emptyMap()) }
-    var selectedBook by remember { mutableStateOf<LiteratureBook?>(null) }
+    // State
+    var allBooks by remember { mutableStateOf<List<StellariumDocument>>(emptyList()) }
+    var groupedBooks by remember { mutableStateOf<Map<String, List<StellariumDocument>>>(emptyMap()) }
+    var selectedBook by remember { mutableStateOf<StellariumDocument?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
+    // --- Load JSON and Organize ---
     LaunchedEffect(Unit) {
         try {
             val books = loadBooksFromAssets(context)
@@ -75,6 +76,7 @@ fun BookScreen() {
         }
     }
 
+    // --- Navigation Logic ---
     if (selectedBook != null) {
         BackHandler { selectedBook = null }
         BookReaderView(
@@ -92,66 +94,86 @@ fun BookScreen() {
     }
 }
 
-// --- Logic to Parse JSON and Organize Categories ---
+// --- Logic to Parse JSON Array ---
+fun loadBooksFromAssets(context: Context): List<StellariumDocument> {
+    val result = mutableListOf<StellariumDocument>()
+    
+    // Open the file
+    val inputStream = context.assets.open("literature.json")
+    val reader = BufferedReader(InputStreamReader(inputStream))
+    val jsonString = reader.readText()
+    reader.close()
 
-fun loadBooksFromAssets(context: Context): List<LiteratureBook> {
-    val result = mutableListOf<LiteratureBook>()
-    try {
-        val inputStream = context.assets.open("literature.json")
-        val reader = BufferedReader(InputStreamReader(inputStream))
-        val jsonString = reader.readText()
-        reader.close()
+    // Parse JSON Array
+    val jsonArray = JSONArray(jsonString)
+    for (i in 0 until jsonArray.length()) {
+        val bookObj = jsonArray.getJSONObject(i)
+        
+        // Required Fields
+        val title = bookObj.getString("title")
+        val content = bookObj.getString("content")
+        
+        // Optional Fields (check if they exist and are not null)
+        val notionUrl = if (bookObj.has("notion_url") && !bookObj.isNull("notion_url")) {
+            bookObj.getString("notion_url")
+        } else null
 
-        val rootObject = JSONObject(jsonString)
-        val keys = rootObject.keys()
-
-        while (keys.hasNext()) {
-            val key = keys.next()
-            val bookObj = rootObject.getJSONObject(key)
-            val title = bookObj.optString("title", "Untitled")
-            val content = bookObj.optString("content", "")
-            val url = bookObj.optString("notion_url", "")
-            val desc = bookObj.optString("comment_from_index", "Tap to read full content.")
-            
-            result.add(LiteratureBook(key, title, desc, content, url))
-        }
-    } catch (e: Exception) {
-        throw e
+        val comment = if (bookObj.has("comment_from_index") && !bookObj.isNull("comment_from_index")) {
+            bookObj.getString("comment_from_index")
+        } else null
+        
+        result.add(StellariumDocument(title, content, notionUrl, comment))
     }
     return result
 }
 
-fun organizeBooksByCategory(books: List<LiteratureBook>): Map<String, List<LiteratureBook>> {
+// --- Logic to Group Books based on "Stellarium Literature" index ---
+fun organizeBooksByCategory(books: List<StellariumDocument>): Map<String, List<StellariumDocument>> {
+    // 1. Find the Index Book ("Stellarium Literature")
     val indexBook = books.find { it.title.trim().equals("Stellarium Literature", ignoreCase = true) } 
         ?: return mapOf("All Literature" to books.sortedBy { it.title })
 
-    val categorizedMap = linkedMapOf<String, MutableList<LiteratureBook>>()
-    val booksById = books.associateBy { it.id }
-    val assignedIds = mutableSetOf<String>()
-    assignedIds.add(indexBook.id)
+    val categorizedMap = linkedMapOf<String, MutableList<StellariumDocument>>()
+    // Map titles to books for easy lookup (normalize keys to lowercase/trimmed)
+    val booksByTitle = books.associateBy { it.title.trim().lowercase() }
+    val assignedTitles = mutableSetOf<String>()
+    
+    // Hide the index book itself from the list
+    assignedTitles.add(indexBook.title.trim().lowercase())
 
     val lines = indexBook.content.lines()
     var currentCategory = "General"
-    val idPattern = Pattern.compile("([a-f0-9]{32})\\.md")
+    
+    // Regex to find: [Title](...) 
+    // Matches standard markdown links
+    val linkPattern = Pattern.compile("\\[(.*?)\\]\\(.*?\\)")
 
     for (line in lines) {
         val trimmed = line.trim()
+        
+        // Detect Headers: **Category Name**
         if (trimmed.startsWith("**") && trimmed.endsWith("**") && trimmed.length > 4) {
             currentCategory = trimmed.removeSurrounding("**").trim()
             continue
         }
-        val matcher = idPattern.matcher(trimmed)
+
+        // Detect Links: [Book Title]
+        val matcher = linkPattern.matcher(trimmed)
         if (matcher.find()) {
-            val extractedId = matcher.group(1)
-            val book = booksById[extractedId]
+            val extractedTitle = matcher.group(1)?.trim() ?: ""
+            
+            // Find book by matching title
+            val book = booksByTitle[extractedTitle.lowercase()] 
+            
             if (book != null) {
                 categorizedMap.getOrPut(currentCategory) { mutableListOf() }.add(book)
-                assignedIds.add(extractedId)
+                assignedTitles.add(book.title.trim().lowercase())
             }
         }
     }
 
-    val unassigned = books.filter { !assignedIds.contains(it.id) }
+    // Add unassigned books to "Other Resources"
+    val unassigned = books.filter { !assignedTitles.contains(it.title.trim().lowercase()) }
     if (unassigned.isNotEmpty()) {
         categorizedMap.getOrPut("Other Resources") { mutableListOf() }.addAll(unassigned)
     }
@@ -163,11 +185,11 @@ fun organizeBooksByCategory(books: List<LiteratureBook>): Map<String, List<Liter
 
 @Composable
 fun BookListView(
-    groupedBooks: Map<String, List<LiteratureBook>>,
-    allBooks: List<LiteratureBook>,
+    groupedBooks: Map<String, List<StellariumDocument>>,
+    allBooks: List<StellariumDocument>,
     isLoading: Boolean,
     error: String?,
-    onBookClick: (LiteratureBook) -> Unit
+    onBookClick: (StellariumDocument) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -201,6 +223,7 @@ fun BookListView(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // --- PDF Section ---
                 item {
                     Text(
                         text = "Official Books (PDF)",
@@ -210,28 +233,29 @@ fun BookListView(
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     
-                    // Stellarium Book (With Links)
+                    // The Stellarium Book PDF (With Amazon/Everand Links)
                     PDFBookCard(
                         title = "The Stellarium Book",
                         fileName = "The.Stellarium.Book.pdf",
                         context = context,
-                        showLinks = true
+                        showExternalLinks = true
                     )
                     
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Society Book (No Links)
+                    // The Stellarium Society PDF (No External Links)
                     PDFBookCard(
                         title = "The Stellarium Society",
                         fileName = "Stellarium.Society.pdf",
                         context = context,
-                        showLinks = false
+                        showExternalLinks = false
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
-                    Divider(color = MaterialTheme.colorScheme.outlineVariant)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
 
+                // --- Grouped Books Section ---
                 if (groupedBooks.isNotEmpty()) {
                     groupedBooks.forEach { (category, books) ->
                         if (books.isNotEmpty()) {
@@ -252,6 +276,7 @@ fun BookListView(
                         }
                     }
                 } else {
+                    // Fallback
                     items(allBooks) { book -> BookCard(book, onBookClick) }
                 }
             }
@@ -260,7 +285,7 @@ fun BookListView(
 }
 
 @Composable
-fun PDFBookCard(title: String, fileName: String, context: Context, showLinks: Boolean) {
+fun PDFBookCard(title: String, fileName: String, context: Context, showExternalLinks: Boolean) {
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -292,8 +317,7 @@ fun PDFBookCard(title: String, fileName: String, context: Context, showLinks: Bo
                 }
             }
 
-            // External Links (Only for The Stellarium Book)
-            if (showLinks) {
+            if (showExternalLinks) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -318,7 +342,7 @@ fun PDFBookCard(title: String, fileName: String, context: Context, showLinks: Bo
 }
 
 @Composable
-fun BookCard(book: LiteratureBook, onClick: (LiteratureBook) -> Unit) {
+fun BookCard(book: StellariumDocument, onClick: (StellariumDocument) -> Unit) {
     OutlinedCard(
         onClick = { onClick(book) },
         modifier = Modifier.fillMaxWidth(),
@@ -330,7 +354,7 @@ fun BookCard(book: LiteratureBook, onClick: (LiteratureBook) -> Unit) {
             modifier = Modifier
                 .padding(20.dp)
                 .fillMaxWidth(), 
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally // Center Aligned
         ) {
             Text(
                 text = book.title,
@@ -339,10 +363,11 @@ fun BookCard(book: LiteratureBook, onClick: (LiteratureBook) -> Unit) {
                 color = MaterialTheme.colorScheme.primary,
                 textAlign = TextAlign.Center
             )
-            if (book.description.isNotBlank() && book.description != "null") {
+            // Show comment/description if available
+            if (!book.commentFromIndex.isNullOrBlank() && book.commentFromIndex != "null") {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = book.description,
+                    text = book.commentFromIndex,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -355,7 +380,7 @@ fun BookCard(book: LiteratureBook, onClick: (LiteratureBook) -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BookReaderView(book: LiteratureBook, onBack: () -> Unit) {
+fun BookReaderView(book: StellariumDocument, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -386,13 +411,14 @@ fun BookReaderView(book: LiteratureBook, onBack: () -> Unit) {
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally // Center content
         ) {
             MarkdownText(content = book.content)
             
             Spacer(modifier = Modifier.height(32.dp))
             
-            if (book.notionUrl.isNotEmpty()) {
+            // Link to Notion if available
+            if (!book.notionUrl.isNullOrBlank()) {
                 val context = LocalContext.current
                 Button(
                     onClick = {
@@ -411,6 +437,8 @@ fun BookReaderView(book: LiteratureBook, onBack: () -> Unit) {
     }
 }
 
+// --- Custom Markdown Parser & Renderer ---
+
 @Composable
 fun MarkdownText(content: String) {
     val context = LocalContext.current
@@ -420,7 +448,7 @@ fun MarkdownText(content: String) {
         text = styledText,
         style = MaterialTheme.typography.bodyLarge.copy(
             color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center, // Centralized
+            textAlign = TextAlign.Center, // CENTRALIZED MARKDOWN TEXT
             lineHeight = 24.sp
         ),
         onClick = { offset ->
@@ -444,6 +472,7 @@ fun parseMarkdown(markdown: String): androidx.compose.ui.text.AnnotatedString {
         for (line in lines) {
             val trimmedLine = line.trim()
 
+            // Header (#)
             if (trimmedLine.startsWith("#")) {
                 val level = trimmedLine.takeWhile { it == '#' }.length
                 val text = trimmedLine.substring(level).trim()
@@ -462,6 +491,7 @@ fun parseMarkdown(markdown: String): androidx.compose.ui.text.AnnotatedString {
                 continue
             }
 
+            // Bold Lines (**Text**) - Treated like Subheaders
             if (trimmedLine.startsWith("**") && trimmedLine.endsWith("**")) {
                 if (length > 0) append("\n\n")
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 18.sp)) {
@@ -472,6 +502,7 @@ fun parseMarkdown(markdown: String): androidx.compose.ui.text.AnnotatedString {
 
             if (length > 0) append("\n") 
             
+            // Regex for Links and Bold inside text
             val regex = Regex("(\\[(.*?)\\]\\((.*?)\\))|(\\*\\*(.*?)\\*\\*)")
             
             var lastIndex = 0
@@ -483,6 +514,7 @@ fun parseMarkdown(markdown: String): androidx.compose.ui.text.AnnotatedString {
                 }
 
                 if (match.groups[1] != null) { 
+                    // Link
                     val linkText = match.groups[2]?.value ?: ""
                     val linkUrl = match.groups[3]?.value ?: ""
                     
@@ -498,6 +530,7 @@ fun parseMarkdown(markdown: String): androidx.compose.ui.text.AnnotatedString {
                     }
                     pop()
                 } else if (match.groups[4] != null) { 
+                    // Bold
                     val boldText = match.groups[5]?.value ?: ""
                     withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
                         append(boldText)
@@ -513,7 +546,7 @@ fun parseMarkdown(markdown: String): androidx.compose.ui.text.AnnotatedString {
     }
 }
 
-// --- UPDATED PDF HELPERS USING MEDIASTORE (Fixes "Not saving") ---
+// --- PDF Helpers using MediaStore (Fixes download issue) ---
 
 fun openPdfFromAssets(context: Context, fileName: String) {
     try {
@@ -535,14 +568,13 @@ fun openPdfFromAssets(context: Context, fileName: String) {
         context.startActivity(chooser)
     } catch (e: Exception) {
         Toast.makeText(context, "Error opening PDF: ${e.message}", Toast.LENGTH_LONG).show()
-        e.printStackTrace()
     }
 }
 
 fun savePdfToDownloads(context: Context, fileName: String) {
     try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // Modern Android (API 29+) -> Use MediaStore
+            // Modern Android (API 29+): Use MediaStore
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
                 put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
@@ -559,10 +591,10 @@ fun savePdfToDownloads(context: Context, fileName: String) {
                 }
                 Toast.makeText(context, "Saved to Downloads", Toast.LENGTH_LONG).show()
             } else {
-                Toast.makeText(context, "Error: Could not create file", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Failed to create file", Toast.LENGTH_LONG).show()
             }
         } else {
-            // Legacy Android (< API 29) -> Direct File Access
+            // Older Android: Direct File Access
             val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             val file = File(downloadsDir, fileName)
             context.assets.open(fileName).use { input ->
@@ -570,10 +602,10 @@ fun savePdfToDownloads(context: Context, fileName: String) {
                     input.copyTo(output)
                 }
             }
-            Toast.makeText(context, "Saved to Downloads: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Saved: ${file.absolutePath}", Toast.LENGTH_LONG).show()
         }
     } catch (e: Exception) {
-        Toast.makeText(context, "Error saving PDF: ${e.message}", Toast.LENGTH_LONG).show()
+        Toast.makeText(context, "Error saving: ${e.message}", Toast.LENGTH_LONG).show()
         e.printStackTrace()
     }
 }

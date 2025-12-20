@@ -1,0 +1,1109 @@
+{
+  "quizTitle": "The Why of Stellarium",
+  "questions": [
+    {
+      "text": "What is the primary mission of the Stellarium Foundation?",
+      "options": [
+        "To establish a new global religious order",
+        "To advance the human endeavor by unifying perspectives and creating wealth",
+        "To replace all existing governments with an AI ruler",
+        "To provide short-term humanitarian aid to war zones",
+        "To curate historical archives of the universe",
+        "To lobby for higher corporate tax rates globally"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "Which three elements constitute 'The Law' that serves as the synthesis of all Stellarium principles?",
+      "options": [
+        "Work Hard, Pray Often, Give Back",
+        "Innovate, Automate, Replicate",
+        "Liberty, Equality, Fraternity",
+        "Do Good, Make Money, Have Fun",
+        "Think Bold, Act Fast, Scale High",
+        "Peace, Prosperity, Power"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "text": "Why does the Foundation prioritize Wealth as the 'biggest and most important metric'?",
+      "options": [
+        "Because greed is the primary driver of technological progress",
+        "To ensure the founder becomes the richest person in history",
+        "Because wealth is the antidote to poverty and the enabler of all higher pursuits",
+        "To create a barrier of entry for low-income individuals",
+        "Because it is the only way to fund a private military",
+        "To demonstrate the superiority of one nation over another"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "What is the core purpose of the 'Elevation to Eden' vision?",
+      "options": [
+        "To return humanity to a primitive, agrarian lifestyle",
+        "To achieve a post-scarcity society where technology untethers humans from toil",
+        "To establish a colony on a different planet named Eden",
+        "To implement a strict religious code based on the Garden of Eden",
+        "To automate only the artistic and creative industries",
+        "To limit human population growth through AI management"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "Why is 'Wealth Activism' treated as the main pillar and seasonal focus?",
+      "options": [
+        "To protest against the existence of billionaires",
+        "To redistribute existing wealth through forced taxation",
+        "To engineer national economies like companies to increase productivity for all citizens",
+        "To encourage people to live a life of spiritual poverty",
+        "To sabotage competing financial institutions",
+        "To collect donations for traditional charitable organizations"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "According to the principles, what is the 'Why' behind the pursuit of Peace?",
+      "options": [
+        "Peace is necessary because conflict makes people too tired to work",
+        "Peace is the fertile ground where wealth and creativity flourish unimpeded",
+        "Peace is a mandate to avoid any form of self-defense",
+        "Peace is the tool used to pacify potential enemies of the state",
+        "Because war is too expensive for the government budget",
+        "To ensure everyone agrees with the same religious doctrine"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "Why are Stellarium Society members required to contribute 1% of their income?",
+      "options": [
+        "As a standard membership fee for a social club",
+        "To provide a personal salary for the local Governor",
+        "As a strategic investment in collective infrastructure and wealth initiatives",
+        "To pay off the founder's personal debts",
+        "Because the law requires all non-profits to collect dues",
+        "To fund political campaigns for specific parties"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "What is the fundamental goal of 'Structural Incentive Engineering'?",
+      "options": [
+        "To manipulate people into doing things against their will",
+        "To build better physical buildings and bridges",
+        "To design systems where the most profitable action is also the most beneficial for all",
+        "To create complex math equations for the stock market",
+        "To discourage people from pursuing their own interests",
+        "To ensure that everyone receives the exact same salary regardless of effort"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "Why is the Foundation described as a 'shared space' for multidisciplinary innovation?",
+      "options": [
+        "Because it is a literal physical park open to the public",
+        "To allow individuals from all walks of life to collaborate for collective prosperity",
+        "To host political debates between different ideologies",
+        "Because it is a government-funded library system",
+        "To store data from various social media platforms",
+        "To provide a platform for religious leaders to find new followers"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "Why does the Foundation maintain that 'We Are One' in the context of the mission?",
+      "options": [
+        "To demand that everyone thinks and acts exactly the same",
+        "To eliminate individual property rights",
+        "To signify that the community is a unified collective with shared success and goals",
+        "Because it is a catchy slogan for marketing purposes",
+        "To indicate that there is only one valid career path",
+        "Because everyone must live in the same house"
+      ],
+      "correctIndex": 2
+    }
+  ]
+}
+
+{
+  "quizTitle": "Stellarium: The Law and Universal Standard",
+  "questions": [
+    {
+      "text": "What is the primary operational directive, known as 'The Law', that governs every decision in the Stellarium?",
+      "options": [
+        "Pray, fast, and wait for a better life",
+        "Make money, have fun, do good",
+        "Sacrifice individual needs for the state",
+        "Abolish all hierarchy and private property",
+        "Obey traditional religious customs exclusively",
+        "Seek power at the expense of others"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "According to the Principles, what is the relationship between Peace and Wealth?",
+      "options": [
+        "Wealth is the cause of all war",
+        "They are completely unrelated concepts",
+        "Peace and wealth walk in one accord",
+        "Wealth is only possible through conflict",
+        "Peace is only for those who are poor",
+        "They are contradictory and cannot coexist"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "Which statement best describes the Stellarium's stance on individual ability?",
+      "options": [
+        "Individuals are incapable and need total state control",
+        "Each individual possesses the innate ability to thrive",
+        "Only the elite are born with the ability to lead",
+        "Thriving is a matter of luck, not interests",
+        "People should only pursue what their religion permits",
+        "Independence is a threat to the collective"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "What is considered the 'biggest and most important metric' for the society?",
+      "options": [
+        "Military strength",
+        "Religious adherence",
+        "Wealth",
+        "Political dominance",
+        "The number of members",
+        "Traditional family lineage"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "Concerning conflict, the Stellarium principles state that:",
+      "options": [
+        "Conflict is necessary for economic growth",
+        "War is anti-wealth and conflict is anti-peace",
+        "War is the only way to spread the philosophy",
+        "Disputes should be settled by physical force",
+        "Conflict shows the strength of the nation",
+        "Peace is a sign of economic weakness"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "The Universal Standard is a set of basic commandments that must be followed by:",
+      "options": [
+        "Only the Governors of the society",
+        "Only the religious members",
+        "People of all nations, tribes, and tongues",
+        "Only those living in the Mansions",
+        "Citizens of a specific political party",
+        "Only the wealthy elite"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "Which of the following is NOT part of the four core pillars of the Universal Standard?",
+      "options": [
+        "Do not kill",
+        "Do not steal",
+        "Do not bear false witness",
+        "Love your neighbor as yourself",
+        "Give 50% of your money to charity",
+        "None of the above (all are pillars)"
+      ],
+      "correctIndex": 4
+    },
+    {
+      "text": "What is the practical interpretation of 'Love your neighbor as yourself' in the Stellarium way?",
+      "options": [
+        "Giving up all your property to your neighbor",
+        "A purely emotional feeling of affection",
+        "Not doing to others what you would not want done to you",
+        "Following the specific rituals of your neighbor's religion",
+        "Agreeing with everything your neighbor says",
+        "Ignoring your neighbor's suffering to focus on yourself"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "If you see people being captive or oppressed, what does the Universal Standard require?",
+      "options": [
+        "Remaining neutral and observing from a distance",
+        "Doing anything you can to help them",
+        "Wait for the local government to take action",
+        "Offer them spiritual advice only",
+        "Blame them for their own misfortune",
+        "Ignore it if it does not affect your wealth"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "Why is John Victor's philosophy considered 'non-religious'?",
+      "options": [
+        "Because it bans all members from practicing faith",
+        "Because it is a practical way of living and relating based on results",
+        "Because it is an atheistic political movement",
+        "Because John Victor claims to be a deity",
+        "Because it focuses only on the afterlife",
+        "Because it requires a new type of worship"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "The Stellarium defines 'bearing false witness' as prohibited because:",
+      "options": [
+        "It is a sin in most ancient scriptures",
+        "It is only wrong if it leads to a prison sentence",
+        "You would not want to be slandered yourself",
+        "It is a political strategy that no longer works",
+        "Only the Ruler is allowed to define the truth",
+        "It is too difficult to maintain a lie"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "How does 'improving and serving people' impact the economy in this philosophy?",
+      "options": [
+        "It is a form of waste that should be avoided",
+        "It is a distraction from making money",
+        "It creates wealth",
+        "It should only be done for religious merit",
+        "It causes inflation",
+        "It makes the society dependent on charity"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "What does the Stellarium say about 'Human Creativity and Ingenuity'?",
+      "options": [
+        "They are dangerous if not controlled by the state",
+        "They are the primary drivers of innovation",
+        "They are less important than manual labor",
+        "They should only be used for the arts, not business",
+        "They are only available to a select few",
+        "They are a source of conflict and should be minimized"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "The phrase 'Would you want to be scammed? Then do not scam' illustrates which concept?",
+      "options": [
+        "The Law of the Jungle",
+        "The Principle of Scarcity",
+        "The Universal Standard (Love your neighbor)",
+        "The Elite Meritocracy",
+        "The Secret of God",
+        "The Corporate Pipeline"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "Which of these is a core value of the 'Stellarium Way'?",
+      "options": [
+        "Conformity and Obedience",
+        "Poverty and Humility",
+        "Liberty and Empowerment",
+        "Tradition and Stagnation",
+        "Secrecy and Deception",
+        "Isolation and Exclusion"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "The Stellarium is described as a 'Nation' and a 'Society' rather than a:",
+      "options": [
+        "Business Enterprise",
+        "Religious Community",
+        "Collaboration Hub",
+        "Technical Network",
+        "Wealth Initiative",
+        "Lifestyle Choice"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "What is the promised outcome of living the simple, progressive Stellarium lifestyle?",
+      "options": [
+        "Becoming a political leader",
+        "Living a life of total solitude",
+        "Being happier, wealthier, and more satisfied",
+        "Being granted eternal life in a different dimension",
+        "The total elimination of all personal desires",
+        "A life free from the need to make money"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "In terms of politics, the Stellarium Foundation aims to remain:",
+      "options": [
+        "A far-right conservative movement",
+        "A far-left socialist organization",
+        "Non-political and non-ideological",
+        "A tool for specific national governments",
+        "A platform for debating political parties",
+        "An advocate for higher taxes on individuals"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "What is the 'Meaning of Life' according to the synthesis of Stellarium law?",
+      "options": [
+        "To work as hard as possible for the state",
+        "To follow the Law: Make money, have fun, do good",
+        "To find a specific religion to belong to",
+        "To reach a state of total physical inactivity",
+        "To accumulate power over others",
+        "To live in a state of constant suffering"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "Why is 'Do Good' included as an equal part of the Law alongside 'Make Money'?",
+      "options": [
+        "To please religious authorities",
+        "Because wealth creation without benevolence is hollow",
+        "To pay fewer taxes",
+        "Because it is a requirement for political office",
+        "To hide the focus on making money",
+        "Because the law requires non-profits to be 'good'"
+      ],
+      "correctIndex": 1
+    }
+  ]
+}
+
+{
+  "quizTitle": "Stellarium Mastery Series: Life & Wealth Architecture",
+  "questions": [
+    {
+      "text": "In 'Mastering Business,' what is described as the primary job of a manager regarding personnel?",
+      "options": [
+        "To become best friends with every employee",
+        "To make the work environment less social and more like a system of inputs and outputs",
+        "To maximize the amount of paperwork and bureaucracy",
+        "To discourage employees from suggesting improvements",
+        "To focus solely on employee emotional comfort",
+        "To manage by intuition without any measurable metrics"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "What is the core purpose of 'Structural Incentive Engineering' in a corporate setting?",
+      "options": [
+        "To build stronger physical infrastructure",
+        "To design rewards so that an individual's most profitable action aligns with the company's goals",
+        "To create a complex hierarchy where only the CEO makes decisions",
+        "To eliminate all forms of compensation except base salary",
+        "To focus on short-term stock price manipulation",
+        "To ensure everyone works the exact same number of hours"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "According to the 'Mastering Business' guide, what is 'Kaizen'?",
+      "options": [
+        "A specific type of high-stakes investment",
+        "The process of firing underperforming staff",
+        "Continuous improvement through streamlined systems and written feedback",
+        "A marketing strategy for international expansion",
+        "A system for managing tax liabilities",
+        "The art of negotiating with banks"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "What are the only 'Two Main' things one needs to know about making money in business?",
+      "options": [
+        "Higher taxes and more employees",
+        "Social media presence and branding",
+        "Increase revenue potential and decrease costs",
+        "Innovation and global travel",
+        "Networking and political alliances",
+        "Debt accumulation and stock buybacks"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "In 'Mastering Finance,' how is inflation defined in terms of its effect on the population?",
+      "options": [
+        "A reward for those with high savings",
+        "A necessary tool for government expansion",
+        "A tax on the poor",
+        "The primary goal of the Central Bank",
+        "A sign of a healthy and stable economy",
+        "An indicator that money velocity is too low"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "What is the Central Bank's primary objective according to Stellarium finance principles?",
+      "options": [
+        "To maximize government debt",
+        "To stop all money printing",
+        "To keep inflation low and employment high",
+        "To compete with private banks for profit",
+        "To increase interest rates as high as possible",
+        "To discourage investment in the stock market"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "What determines the price of an asset in the financial markets?",
+      "options": [
+        "The inherent value of the materials used",
+        "The number of employees a company has",
+        "The reflection of supply and demand at that time",
+        "The founder's personal reputation",
+        "The age of the company",
+        "Government price controls exclusively"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "What is the main advantage of trading 'Derivatives' (Futures and Options)?",
+      "options": [
+        "They carry zero risk",
+        "They are only for institutional investors",
+        "They allow for leveraged investment with smaller amounts of capital",
+        "They eliminate the need for technical analysis",
+        "They are not affected by supply and demand",
+        "They are the only way to avoid inflation"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "In 'Mastering Estate Building,' what is the 'fundamental cornerstone' of increasing net worth?",
+      "options": [
+        "Saving 90% of your income in a standard bank account",
+        "Leveraging your current estate to make a whole lot of money",
+        "Relying solely on a monthly salary",
+        "Avoiding all forms of business risk",
+        "Retiring as early as possible",
+        "Focusing on the inheritance from your family"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "Unless you are a billionaire, what is the Stellarium rule for personal budgeting?",
+      "options": [
+        "Spend as much as possible to look successful",
+        "Keep basic needs as low as possible to maximize capital for investing",
+        "Take as many loans as possible for luxury items",
+        "Never spend money on fun or leisure",
+        "Always spend 50% of your income on housing",
+        "Rely on the government for all basic needs"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "How can relationships be used for 'Estate Building' leverage?",
+      "options": [
+        "By asking friends for small personal loans",
+        "By joining unions/partnerships to offset basic costs and compound efforts",
+        "By avoiding marriage and committed relationships",
+        "By competing with your partner for wealth",
+        "By keeping your financial goals secret from others",
+        "By only dating people who are already billionaires"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "In terms of legal structures, what does John Victor recommend for protecting your branding and assets?",
+      "options": [
+        "Keeping all money in physical cash",
+        "Creating a business entity or trust to shield your estate and pay less taxes",
+        "Putting all assets in a friend's name",
+        "Relying on verbal agreements for all deals",
+        "Avoiding the use of banks entirely",
+        "Only investing in overseas real estate"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "What is the first step in the 'Mastering Selling' process?",
+      "options": [
+        "Demanding payment immediately",
+        "Fostering Affinity and signaling that you know your craft",
+        "Talking about yourself for the entire meeting",
+        "Ignoring the client's objections",
+        "Lowering the price to the point of no profit",
+        "Sending a generic email blast"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "In selling, what should you do if a client presents 'objections'?",
+      "options": [
+        "End the meeting immediately",
+        "Argue with the client until they agree",
+        "Address them with a twist, affirming that your product solves their problem",
+        "Ignore the objections and keep repeating the price",
+        "Apologize and leave",
+        "Lie about the product's capabilities"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "What is the 'Try Again' maxim in the art of selling?",
+      "options": [
+        "If you fail, selling is not for you",
+        "Wait 10 years before contacting the same client",
+        "If a deal falls through, keep contact and try again with a novel offering",
+        "Never contact a client who said 'no' once",
+        "Blame the client for being too poor",
+        "Focus only on cold calling new people"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "What should a salesperson 'appeal to' when dealing with the common person?",
+      "options": [
+        "Their sense of religious duty",
+        "Their self-interest, needs, and desires",
+        "Their political affiliation",
+        "Their fear of the afterlife",
+        "Their desire to conform to the masses",
+        "Their pity for the salesperson"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "In 'Mastering Relationships,' what is defined as the 'essence of love'?",
+      "options": [
+        "A fleeting emotional feeling or spark",
+        "An internal resolve and commitment to seek the best for your partner",
+        "Complete and total physical attraction only",
+        "The number of years spent together",
+        "Agreeing with every opinion the partner has",
+        "Sacrificing your wealth for the partner's luxury"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "What is the Stellarium concept of a 'Mega Union'?",
+      "options": [
+        "A political alliance between nations",
+        "A merger between two large corporations",
+        "A sacred, structured, and potentially polygamous marriage based on synergy",
+        "A labor union for tech workers",
+        "A massive shared bank account for the whole society",
+        "A temporary housing arrangement"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "Why does John Victor recommend 'Relationship Contracts'?",
+      "options": [
+        "To make divorce easier and more frequent",
+        "To establish clear rules, roles, rewards, and expectations",
+        "To allow the government to monitor your personal life",
+        "To limit the amount of fun in the relationship",
+        "To ensure the partner never leaves",
+        "To keep the relationship strictly professional"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "How should finances be handled in a high-level Stellarium relationship?",
+      "options": [
+        "Each person should hide their money from the other",
+        "As a side note that is not important to the union",
+        "By working together as one to supercharge collective wealth creation",
+        "By spending all revenue on leisure to have fun",
+        "By letting the government manage the couple's budget",
+        "By avoiding all shared investments"
+      ],
+      "correctIndex": 2
+    }
+  ]
+}
+
+{
+  "quizTitle": "Stellarium Mastery: Advanced Life Architecture",
+  "questions": [
+    {
+      "text": "In 'Mastering Business,' what is the purpose of delegating tasks to personnel?",
+      "options": [
+        "To avoid doing any work as a manager",
+        "To leverage the potential of the team so the manager can act as an orchestrator",
+        "To create confusion within the corporate hierarchy",
+        "To reduce the number of employees over time",
+        "To ensure the manager has no responsibility for the outcome",
+        "To make the business less profitable but more social"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "What is the recommended approach to management compensation in a state-owned energy company?",
+      "options": [
+        "A flat salary regardless of performance",
+        "A bonus based solely on the number of employees",
+        "A mathematical equation tied to efficiency, equity, and lowering costs for consumers",
+        "Stock options in a private competitor",
+        "A percentage of the total government debt",
+        "Payment in physical commodities like oil or coal"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "According to 'Mastering Finance,' why does money in the financial market not necessarily contribute to higher inflation?",
+      "options": [
+        "Because it is not real money",
+        "Because the government prevents it from being spent",
+        "Because it does not increase money velocity in the broad economy",
+        "Because financial assets have no value",
+        "Because banks do not use that money for loans",
+        "Because inflation only applies to food, not assets"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "When assessing a potential trade, what is 'Drawdown'?",
+      "options": [
+        "The total profit made at the end of the year",
+        "The process of withdrawing money from a bank",
+        "A streak of losses that has an effect on the account balance",
+        "A technical indicator used for selling stocks",
+        "The amount of taxes owed on a successful trade",
+        "The time it takes to execute a market order"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "In 'Mastering Estate Building,' what should you do if you need to decrease your personal spending on housing?",
+      "options": [
+        "Move to a smaller, cheaper apartment alone",
+        "Stop paying the mortgage or rent entirely",
+        "Get a mortgage and have trusted people live with you to share the costs",
+        "Wait for a government housing subsidy",
+        "Live in the office full-time to save money",
+        "Avoid buying property and rent for life"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "What is the 'Expansive Mindset' described in the series?",
+      "options": [
+        "Accepting your current level of wealth as permanent",
+        "Investing in expanding your business, your possibilities, and your potential",
+        "Spending all your money to show others you are wealthy",
+        "Reducing your goals to match your current income",
+        "Focusing only on domestic markets and avoiding global growth",
+        "Waiting for the economy to improve before taking action"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "In the 'Art of Selling,' what is the goal of 'Packaging Your Offering'?",
+      "options": [
+        "To hide the true cost of the product",
+        "To make the solution seem like exactly what the person needs at that moment",
+        "To use expensive materials for the physical box",
+        "To make the product look identical to the competition",
+        "To prioritize the salesperson's needs over the client's",
+        "To delay the delivery of the service"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "Which 'Maxim in Selling' describes the energy exchange between a salesperson and a client?",
+      "options": [
+        "Keep your energy as low as possible to avoid scaring the client",
+        "Aggressively dominate the conversation so the client cannot speak",
+        "Match the client's energy and build it together to take closing action",
+        "Remain silent and wait for the client to offer a price",
+        "Change your personality completely to match the client's religion",
+        "Always be angry to show the client you are serious"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "In 'Mastering Relationships,' what is the first step to achieving your desired love life?",
+      "options": [
+        "Wait for someone to find you",
+        "Architecture and define in detail exactly what you want from a relationship",
+        "Lower your standards to find a mate faster",
+        "Focus only on physical appearance and nothing else",
+        "Ask your parents to choose a partner for you",
+        "Follow traditional dating rules from the last century"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "According to the series, how should a male attract a partner?",
+      "options": [
+        "By being passive and waiting for her to lead",
+        "By presenting desirable qualities and leading 'like a dance' with confidence",
+        "By showing off wealth he does not actually have",
+        "By following her around and asking for permission for everything",
+        "By avoiding all communication until she speaks first",
+        "By dressing as poorly as possible to test her loyalty"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "In the 'Marriage Covenant' template, what is 'Level 2' discipline for a breach?",
+      "options": [
+        "A verbal reprimand and private talk",
+        "A mandated act of service and a session of heavy spanking and bondage",
+        "A total and permanent divorce",
+        "A financial fine paid to the Master",
+        "Public shaming in front of the whole society",
+        "Loss of all property rights within the union"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "What is the 'Sovereign Principle' of a Mega Union?",
+      "options": [
+        "The Law of the state",
+        "The economic profit of the Master",
+        "Love, where every member's happiness is a sacred imperative",
+        "The strict adherence to religious tradition",
+        "The total control of one person over another's thoughts",
+        "The elimination of all physical intimacy"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "In the 'Art of Intimacy,' intimacy is described as:",
+      "options": [
+        "A biological chore that must be finished quickly",
+        "A sacred manifestation of love and an expression of the divine",
+        "A distraction from wealth creation",
+        "A tool for political manipulation",
+        "Something that should never be discussed or taught",
+        "A purely physical act with no spiritual significance"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "What is described as the 'most common' type of orgasm in the guide?",
+      "options": [
+        "The anal orgasm",
+        "The squirt",
+        "The twitching orgasm where energy flows outward",
+        "The whole-body orgasm",
+        "The mental orgasm",
+        "The emotional orgasm"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "What technique is suggested to quickly induce a level one (twitching) orgasm?",
+      "options": [
+        "Ignoring the sensitive areas entirely",
+        "Fixating on the clitoris with pulsating rhythms and suction",
+        "Talking only about financial markets",
+        "Using no lubrication and moving very slowly",
+        "Focusing only on the partner's feet",
+        "Reading a book aloud during the act"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "What is the '5th Orgasm' described as in the Mastery series?",
+      "options": [
+        "The easiest one to achieve",
+        "The 'Whole Body' orgasm, the most difficult and overwhelming",
+        "A purely psychological experience with no physical touch",
+        "Something that only happens during sleep",
+        "A form of meditation that takes several days",
+        "A type of orgasm exclusive to the Master"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "In the 'Fast Lanes of Pleasing,' what is the correct way to perform a 'choke'?",
+      "options": [
+        "Stopping respiration for several minutes",
+        "Pressing on the right of the neck to give a lightness feeling",
+        "Using both hands around the front of the throat with full force",
+        "It is strictly forbidden and never mentioned",
+        "Only using a rope or external device",
+        "Screaming at the partner to stop breathing"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "How does communication impact the intensity of intimacy according to the guide?",
+      "options": [
+        "It destroys the mood and should be avoided",
+        "It is essential for guiding the partner and setting the pace",
+        "It should only be used to discuss chores",
+        "It should only be done in whispers so the neighbors don't hear",
+        "It is a sign of weakness in the Master",
+        "It should be replaced by sign language"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "What is the 'Master's' role during an adventurous BDSM or intimacy session?",
+      "options": [
+        "To be completely submissive to the Wife",
+        "To embody a dominant role and guide the experience with strength and creativity",
+        "To observe from a distance without participating",
+        "To follow a strict religious manual word-for-word",
+        "To prioritize his own pleasure and ignore the partner",
+        "To sleep while the partner performs all the actions"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "Why are 'Safe Words' (like 'RED') used in Stellarium disciplinary and intimacy sessions?",
+      "options": [
+        "To indicate that the session is too boring",
+        "To ensure emotional and physical safety and halt proceedings immediately",
+        "To signify that the Master has won a debate",
+        "To call for a political representative to enter the room",
+        "To signal that it is time to make more money",
+        "They are not used; the Master's word is the only safe word"
+      ],
+      "correctIndex": 1
+    }
+  ]
+}
+
+{
+  "quizTitle": "Stellarium Mastery: Advanced Architecture & Intimacy",
+  "questions": [
+    {
+      "text": "In 'Mastering Business,' what is the secondary role of a manager besides being a scientist and master?",
+      "options": [
+        "A disciplinarian",
+        "An orchestrator",
+        "A social worker",
+        "A temporary assistant",
+        "A political negotiator",
+        "A manual laborer"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "According to the series, where can a business find its 'best advisors' for systematic improvements?",
+      "options": [
+        "External expensive consultants",
+        "Government agencies",
+        "The team or company members already working within the system",
+        "Competitors' annual reports",
+        "Ancient religious texts",
+        "The local community council"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "In finance, when the Central Bank 'decreases' interest rates, what is the intended outcome?",
+      "options": [
+        "Banks keep more money in treasuries",
+        "Money velocity stops completely",
+        "Banks capitalize deposits by offering more loans, increasing money in the economy",
+        "Unemployment is forced to rise",
+        "Inflation is taxed at a 50% rate",
+        "The stock market is closed for restructuring"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "What does the 'Master Trading' guide recommend doing with a winning strategy once validated?",
+      "options": [
+        "Share it for free on social media",
+        "Automate it and trade autonomously",
+        "Stop trading to preserve the win",
+        "Bet the entire account balance on one trade",
+        "Ask a politician for approval",
+        "Change the indicators every day"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "In 'Mastering Finance,' what is 'Arbitrage' described as?",
+      "options": [
+        "A high-risk form of gambling",
+        "Finding and trading differences in asset prices between different brokers or markets",
+        "Long-term investing in government bonds",
+        "Paying off debts early to avoid interest",
+        "Lobbying for lower interest rates",
+        "Selling assets during a market crash"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "In 'Mastering Estate Building,' what is the recommended use of a 'Trust' or limited liability business?",
+      "options": [
+        "To hide income from the Stellarium Governor",
+        "To shield your branding and assets while potentially paying less taxes",
+        "To allow friends to use your credit card",
+        "To avoid the 'Universal Standard' laws",
+        "To give all wealth to the state",
+        "To store physical gold bars safely"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "In the 'Art of Selling,' what is the 'Qui pro quo' or 'Tik for Tak' principle?",
+      "options": [
+        "Winning an argument at all costs",
+        "Giving a product away for free forever",
+        "Convincing someone to exchange their valuable offering for your valuable offering",
+        "Ignoring the client until they beg to buy",
+        "Reporting the client for false witness",
+        "Using religious guilt to close a deal"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "In 'Mastering Selling,' why is it recommended to close a deal in person or by phone rather than the internet?",
+      "options": [
+        "It is harder for the client to record the conversation",
+        "It is more personal, more engaging, and has better closing rates",
+        "It allows the salesperson to hide their identity",
+        "It is required by the Stellarium Constitution",
+        "It uses less technology and saves energy",
+        "The internet is only for advertising, not for money"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "In 'Mastering Relationships,' what should you do if your partner does not reciprocate your 'arousal' or energy properly during a sale or interaction?",
+      "options": [
+        "Force them to match your energy",
+        "Terminate the relationship immediately",
+        "Do not mismatch their energy if they do not reciprocate properly",
+        "Complain to the Governor about their lack of enthusiasm",
+        "Double your energy to overwhelm them",
+        "Use Level 3 discipline immediately"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "According to the series, why are married couples often 'wealthier and happier'?",
+      "options": [
+        "Because they pay no taxes",
+        "They can compound efforts, offset basic costs like housing, and provide mutual support",
+        "Because the government gives them free money",
+        "They are required to work 20 hours a day",
+        "They do not participate in 'Have Fun' activities",
+        "Because they follow John Victor's biography"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "Under 'Article IV' of the Marriage Covenant, how are financial assets handled?",
+      "options": [
+        "Each spouse keeps their own money and never shares",
+        "Melted into a single, unified pool presided over by the Master's oversight",
+        "Given to the state for distribution",
+        "Spent immediately on luxury items to have fun",
+        "Buried in a secret location known only to the Wife",
+        "Divided by the number of children in the union"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "In 'Article VI' of the Marriage Covenant, what is the specific definition of Infidelity?",
+      "options": [
+        "Thinking about another person",
+        "Having a business partnership without the Master",
+        "Any sexual engagement outside the union without the Master’s express, written consent",
+        "Disagreeing with a decision made by the Master",
+        "Refusing to do household chores",
+        "Forgetting a vow renewal ceremony"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "In the 'Art of Intimacy,' what is a technical secret for making a partner's orgasm last a long time?",
+      "options": [
+        "Stopping all movement once the orgasm starts",
+        "Increasing the velocity and going all 'in and out' as the orgasm begins",
+        "Talking about macroeconomics",
+        "Closing your eyes and remaining silent",
+        "Leaving the room for five minutes",
+        "Switching to a different room in the Mansion"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "How is the '4th Orgasm' (the squirt) induced according to the guide?",
+      "options": [
+        "By focusing on the anal area only",
+        "By making the 'Spider-man' hand and massaging the internal wall while stroking hard",
+        "Through purely mental meditation",
+        "By avoiding all touch for 24 hours",
+        "By using cold water only",
+        "By reciting the Seven Principles aloud"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "What is the '5th Orgasm' (Whole Body Orgasm) derived from?",
+      "options": [
+        "Rote memorization of the book",
+        "Vaginal orgasms combined with intense touch, framing, and brutish sensations",
+        "A purely electrical device",
+        "Financial success in the stock market",
+        "A long conversation about politics",
+        "The 'Level 1' verbal reprimand"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "In the 'Art of Intimacy,' what role does 'Leadership' play during the act?",
+      "options": [
+        "It is irrelevant during intimacy",
+        "Describing what is happening, framing the desire, and moments of deep appreciation",
+        "Delegating the act to a third party",
+        "Focusing solely on the manager's own metrics",
+        "Stopping the act to check the Kanban board",
+        "Requiring the partner to provide a written report"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "What technical advice is given for 'Hitting from the back' to enhance pleasure?",
+      "options": [
+        "Keeping the back as flat as possible",
+        "Putting hands on the partner's waist and pressing down to arc the back high",
+        "Looking at the towering screen in the office",
+        "Remaining as still as possible",
+        "Only doing it on Sundays of Love",
+        "Using no vocal communication"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "Under 'Article X' of the Marriage Covenant, what is a 'Sunday of Love'?",
+      "options": [
+        "A day for attending religious services",
+        "A day for working on business projects only",
+        "An extended intimacy festival involving the entire union, potentially lasting 24 hours",
+        "A day for silence and fasting",
+        "The day when the 1% contribution is collected",
+        "A day for visiting neighbors who are not in the society"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "text": "How does the Mastery series describe 'Love' in the context of a union?",
+      "options": [
+        "A temporary chemical reaction in the brain",
+        "An internal resolve to seek the best for your partner always",
+        "A burden that prevents wealth creation",
+        "A political alliance between families",
+        "A requirement for those who are not smart",
+        "A distraction from 'Mastering Selling'"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "text": "According to the final synthesis of the Stellarium way, why is this lifestyle considered 'progressive'?",
+      "options": [
+        "Because it requires voting for specific politicians",
+        "It is a personal choice to be happier, wealthier, and more satisfied through simple, effective laws",
+        "It forces everyone to share their secrets",
+        "It is based on a return to 19th-century traditions",
+        "Because it is funded by the Brazilian government",
+        "Because it prioritizes suffering over fun"
+      ],
+      "correctIndex": 1
+    }
+  ]
+}

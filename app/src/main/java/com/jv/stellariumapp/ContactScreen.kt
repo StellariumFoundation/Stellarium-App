@@ -19,11 +19,15 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLEncoder
+import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun ContactScreen() {
@@ -113,18 +117,28 @@ to the Stellarium Foundation and Radiohead.""",
                 if (message.isNotBlank()) {
                     isSending = true
                     scope.launch {
-                        val success = sendToGoogleForm(name, contact, message)
+                        // Send using EmailJS API
+                        val success = sendViaEmailJS(name, contact, message)
                         isSending = false
+                        
                         if (success) {
                             Toast.makeText(context, "Message sent successfully!", Toast.LENGTH_LONG).show()
                             name = ""
                             contact = ""
                             message = ""
                         } else {
-                            // FALLBACK: If API fails, let user open browser
-                            Toast.makeText(context, "Opening Browser to Send...", Toast.LENGTH_SHORT).show()
-                            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://docs.google.com/forms/d/e/1FAIpQLSfIy7Wu4pZM-JsW146zYD1W_Y_tUE5EU4iVjkOu1Es2lvrDmQ/viewform"))
-                            context.startActivity(browserIntent)
+                            // Fallback to local email client if API fails
+                            Toast.makeText(context, "Opening Email Client...", Toast.LENGTH_SHORT).show()
+                            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                data = Uri.parse("mailto:stellar.foundation.us@gmail.com")
+                                putExtra(Intent.EXTRA_SUBJECT, "Message from App: $name")
+                                putExtra(Intent.EXTRA_TEXT, "Contact: $contact\n\nMessage:\n$message")
+                            }
+                            try {
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "No email client found.", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     }
                 } else {
@@ -147,68 +161,72 @@ to the Stellarium Foundation and Radiohead.""",
     }
 }
 
-suspend fun sendToGoogleForm(name: String, contact: String, message: String): Boolean {
+/**
+ * Sends data directly to EmailJS REST API
+ */
+suspend fun sendViaEmailJS(name: String, contact: String, message: String): Boolean {
     return withContext(Dispatchers.IO) {
         var conn: HttpURLConnection? = null
         try {
-            val formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSfIy7Wu4pZM-JsW146zYD1W_Y_tUE5EU4iVjkOu1Es2lvrDmQ/formResponse"
-            val viewUrl = "https://docs.google.com/forms/d/e/1FAIpQLSfIy7Wu4pZM-JsW146zYD1W_Y_tUE5EU4iVjkOu1Es2lvrDmQ/viewform"
-            
-            val finalMessage = StringBuilder()
-            if (name.isNotBlank()) finalMessage.append("Name/Institution: $name\n")
-            if (contact.isNotBlank()) finalMessage.append("Contact Back: $contact\n")
-            finalMessage.append("\nMessage:\n$message")
-            
-            // Google needs a valid looking email if the field is "Email"
-            val emailToSend = if (contact.contains("@") && contact.contains(".")) contact else "anonymous@stellarium.app"
-
-            val postData = StringBuilder()
-            postData.append(URLEncoder.encode("emailAddress", "UTF-8") + "=" + URLEncoder.encode(emailToSend, "UTF-8"))
-            postData.append("&")
-            postData.append(URLEncoder.encode("entry.474494390", "UTF-8") + "=" + URLEncoder.encode(finalMessage.toString(), "UTF-8"))
-            
-            // Hidden fields to mimic real browser
-            postData.append("&")
-            postData.append(URLEncoder.encode("pageHistory", "UTF-8") + "=" + URLEncoder.encode("0", "UTF-8"))
-            postData.append("&")
-            postData.append(URLEncoder.encode("fvv", "UTF-8") + "=" + URLEncoder.encode("1", "UTF-8"))
-
-            val url = URL(formUrl)
+            val url = URL("https://api.emailjs.com/api/v1.0/email/send")
             conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.doOutput = true
             conn.doInput = true
-            conn.instanceFollowRedirects = true
+            conn.setRequestProperty("Content-Type", "application/json")
             
-            // CRITICAL HEADERS FOR GOOGLE FORMS
-            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-            conn.setRequestProperty("Referer", viewUrl) // <--- THIS OFTEN FIXES IT
-            
-            val userAgents = listOf(
-                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
-            )
-            conn.setRequestProperty("User-Agent", userAgents.random())
+            // --- EmailJS Configuration ---
+            val serviceId = "service_qye8v7s"
+            val templateId = "template_m3bkagb"
+            val publicKey = "-tOozrRD3X82Oy7Uk" 
 
-            val outputBytes = postData.toString().toByteArray(Charsets.UTF_8)
-            conn.outputStream.use { os ->
-                os.write(outputBytes)
-                os.flush()
+            // Prepare Template Parameters (Matches your screenshot)
+            val templateParams = JSONObject()
+            templateParams.put("title", "New App Submission")
+            templateParams.put("name", if (name.isNotBlank()) name else "Anonymous")
+            templateParams.put("email", if (contact.isNotBlank()) contact else "No contact info provided")
+            templateParams.put("message", message)
+            
+            // Add Timestamp
+            val timeStamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+            templateParams.put("time", timeStamp)
+
+            // Final Payload
+            val jsonPayload = JSONObject()
+            jsonPayload.put("service_id", serviceId)
+            jsonPayload.put("template_id", templateId)
+            jsonPayload.put("user_id", publicKey) // In REST API, user_id is the Public Key
+            jsonPayload.put("template_params", templateParams)
+
+            // Send Data
+            val writer = OutputStreamWriter(conn.outputStream)
+            writer.write(jsonPayload.toString())
+            writer.flush()
+            writer.close()
+
+            val responseCode = conn.responseCode
+            val responseMsg = conn.responseMessage
+            
+            Log.d("EmailJS", "Code: $responseCode, Msg: $responseMsg")
+
+            // EmailJS returns 200 OK for success
+            if (responseCode == 200) {
+                return@withContext true
+            } else {
+                // Log error details if failed
+                try {
+                    val reader = BufferedReader(InputStreamReader(conn.errorStream))
+                    val errorResponse = reader.readText()
+                    Log.e("EmailJS", "Error Response: $errorResponse")
+                } catch (e: Exception) {
+                    Log.e("EmailJS", "Could not read error stream")
+                }
+                return@withContext false
             }
             
-            val responseCode = conn.responseCode
-            // Read response to close stream cleanly
-            try {
-                BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
-            } catch (e: Exception) { /* Ignored */ }
-
-            Log.d("ContactForm", "Code: $responseCode")
-            
-            // 200 = Success
-            return@withContext responseCode == 200
-            
         } catch (e: Exception) {
-            Log.e("ContactForm", "Failed: ${e.message}")
+            Log.e("EmailJS", "Exception: ${e.message}")
+            e.printStackTrace()
             return@withContext false
         } finally {
             conn?.disconnect()
