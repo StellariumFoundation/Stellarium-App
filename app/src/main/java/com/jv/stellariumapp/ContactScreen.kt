@@ -58,7 +58,7 @@ fun ContactScreen() {
         
         Text(
             text = """Send Feedback, Suggestions, Compliments, Proposals, Business Partnerships, Customer Support Queries, etc...
-to the Stellarium Foundation and Radiohead.""",
+to the Stellarium Foundation.""",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onBackground
@@ -117,8 +117,16 @@ to the Stellarium Foundation and Radiohead.""",
                 if (message.isNotBlank()) {
                     isSending = true
                     scope.launch {
-                        // Send using EmailJS API
-                        val success = sendViaEmailJS(name, contact, message)
+                        // 1. Try FormSubmit
+                        Log.d("Contact", "Attempting FormSubmit...")
+                        var success = sendViaFormSubmit(name, contact, message)
+                        
+                        // 2. If Failed, Try EmailJS
+                        if (!success) {
+                            Log.d("Contact", "FormSubmit failed. Attempting EmailJS...")
+                            success = sendViaEmailJS(name, contact, message)
+                        }
+
                         isSending = false
                         
                         if (success) {
@@ -127,8 +135,8 @@ to the Stellarium Foundation and Radiohead.""",
                             contact = ""
                             message = ""
                         } else {
-                            // Fallback to local email client if API fails
-                            Toast.makeText(context, "Opening Email Client...", Toast.LENGTH_SHORT).show()
+                            // 3. Fallback to Android Intent
+                            Toast.makeText(context, "Network failed. Opening Email...", Toast.LENGTH_SHORT).show()
                             val intent = Intent(Intent.ACTION_SENDTO).apply {
                                 data = Uri.parse("mailto:stellar.foundation.us@gmail.com")
                                 putExtra(Intent.EXTRA_SUBJECT, "Message from App: $name")
@@ -162,7 +170,63 @@ to the Stellarium Foundation and Radiohead.""",
 }
 
 /**
- * Sends data directly to EmailJS REST API
+ * METHOD 1: FormSubmit.co
+ * Robust, no API keys needed on client side.
+ */
+suspend fun sendViaFormSubmit(name: String, contact: String, message: String): Boolean {
+    return withContext(Dispatchers.IO) {
+        var conn: HttpURLConnection? = null
+        try {
+            val targetEmail = "stellar.foundation.us@gmail.com"
+            val url = URL("https://formsubmit.co/ajax/$targetEmail")
+            
+            conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.doOutput = true
+            conn.doInput = true
+            conn.readTimeout = 10000
+            conn.connectTimeout = 10000
+            
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.setRequestProperty("Accept", "application/json")
+
+            val jsonPayload = JSONObject()
+            jsonPayload.put("name", if (name.isBlank()) "Anonymous" else name)
+            // FormSubmit requires a valid-looking email field to prevent spam
+            jsonPayload.put("email", if (contact.contains("@")) contact else "no-reply@stellarium.app") 
+            jsonPayload.put("contact_details", contact)
+            jsonPayload.put("message", message)
+            jsonPayload.put("_subject", "Stellarium App Message")
+            jsonPayload.put("_captcha", "false") // Disable captcha
+            jsonPayload.put("_template", "table")
+
+            val writer = OutputStreamWriter(conn.outputStream)
+            writer.write(jsonPayload.toString())
+            writer.flush()
+            writer.close()
+
+            val responseCode = conn.responseCode
+            Log.d("FormSubmit", "Code: $responseCode")
+            
+            // Read response to ensure connection closes cleanly
+            try {
+                BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
+            } catch (e: Exception) { }
+
+            return@withContext responseCode == 200
+            
+        } catch (e: Exception) {
+            Log.e("FormSubmit", "Error: ${e.message}")
+            return@withContext false
+        } finally {
+            conn?.disconnect()
+        }
+    }
+}
+
+/**
+ * METHOD 2: EmailJS
+ * Uses specific keys provided.
  */
 suspend fun sendViaEmailJS(name: String, contact: String, message: String): Boolean {
     return withContext(Dispatchers.IO) {
@@ -175,58 +239,39 @@ suspend fun sendViaEmailJS(name: String, contact: String, message: String): Bool
             conn.doInput = true
             conn.setRequestProperty("Content-Type", "application/json")
             
-            // --- EmailJS Configuration ---
+            // Keys provided by user
             val serviceId = "service_qye8v7s"
             val templateId = "template_m3bkagb"
             val publicKey = "-tOozrRD3X82Oy7Uk" 
 
-            // Prepare Template Parameters (Matches your screenshot)
+            // Params matching the screenshot
             val templateParams = JSONObject()
-            templateParams.put("title", "New App Submission")
+            templateParams.put("title", "App Contact Form")
             templateParams.put("name", if (name.isNotBlank()) name else "Anonymous")
-            templateParams.put("email", if (contact.isNotBlank()) contact else "No contact info provided")
+            templateParams.put("email", if (contact.isNotBlank()) contact else "No info")
             templateParams.put("message", message)
             
-            // Add Timestamp
-            val timeStamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+            val timeStamp = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
             templateParams.put("time", timeStamp)
 
-            // Final Payload
             val jsonPayload = JSONObject()
             jsonPayload.put("service_id", serviceId)
             jsonPayload.put("template_id", templateId)
-            jsonPayload.put("user_id", publicKey) // In REST API, user_id is the Public Key
+            jsonPayload.put("user_id", publicKey)
             jsonPayload.put("template_params", templateParams)
 
-            // Send Data
             val writer = OutputStreamWriter(conn.outputStream)
             writer.write(jsonPayload.toString())
             writer.flush()
             writer.close()
 
             val responseCode = conn.responseCode
-            val responseMsg = conn.responseMessage
-            
-            Log.d("EmailJS", "Code: $responseCode, Msg: $responseMsg")
+            Log.d("EmailJS", "Code: $responseCode")
 
-            // EmailJS returns 200 OK for success
-            if (responseCode == 200) {
-                return@withContext true
-            } else {
-                // Log error details if failed
-                try {
-                    val reader = BufferedReader(InputStreamReader(conn.errorStream))
-                    val errorResponse = reader.readText()
-                    Log.e("EmailJS", "Error Response: $errorResponse")
-                } catch (e: Exception) {
-                    Log.e("EmailJS", "Could not read error stream")
-                }
-                return@withContext false
-            }
+            return@withContext responseCode == 200
             
         } catch (e: Exception) {
             Log.e("EmailJS", "Exception: ${e.message}")
-            e.printStackTrace()
             return@withContext false
         } finally {
             conn?.disconnect()
