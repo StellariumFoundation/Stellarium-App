@@ -56,7 +56,7 @@ To build this app locally, you need **Android Studio** (Koala or newer recommend
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/YOUR_USERNAME/stellarium-app.git
+    git clone https://github.com/StellariumFoundation/stellarium-app.git
     ```
 2.  **Open in Android Studio.**
 3.  **Sync Gradle.**
