@@ -1,4 +1,4 @@
-name: Build and Release Stellarium MVP
+name: Build and Release Official v1.0 (Signed)
 
 on:
   push:
@@ -22,55 +22,87 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
+    # --- NEW STEP: Decode the Keystore ---
+    - name: Decode Keystore
+      env:
+        ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      run: |
+        # Decodes the base64 secret and saves it as 'release.keystore' in the app folder
+        echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > app/release.keystore
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Build Optimized APKs
-      run: ./gradlew assembleDebug
+    # --- BUILD STEP: Signed Release ---
+    - name: Build Optimized Signed APKs
+      env:
+        # These env vars match what we wrote in build.gradle.kts
+        KEYSTORE_PATH: "release.keystore"
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      run: ./gradlew assembleRelease --parallel --build-cache
 
     - name: List Build Outputs (Debugging)
       run: |
-        echo "Listing APK directory structure to verify paths:"
-        ls -R app/build/outputs/apk/
+        echo "Verifying Release output..."
+        ls -R app/build/outputs/apk/release/
 
-    - name: Prepare and Rename APKs
+    - name: Prepare and Rename 1.0 Artifacts
       id: prepare_apks
       run: |
         mkdir -p release_apks
         
-        # The correct path for splits is usually 'app/build/outputs/apk/debug/'
-        BASE_PATH="app/build/outputs/apk/debug"
+        # NOTE: Release APKs are in 'release', not 'debug'
+        BASE_PATH="app/build/outputs/apk/release"
         
-        # Move and Rename Universal APK
-        cp "$BASE_PATH/app-universal-debug.apk" release_apks/Stellarium-Universal.apk
+        # Define the Version Name
+        APP_NAME="Stellarium-v1.0"
         
-        # Move and Rename ARM64 (v8a)
-        cp "$BASE_PATH/app-arm64-v8a-debug.apk" release_apks/Stellarium-ARM64.apk
+        # 1. Universal (Works on all phones)
+        if [ -f "$BASE_PATH/app-universal-release.apk" ]; then
+          cp "$BASE_PATH/app-universal-release.apk" "release_apks/${APP_NAME}-Universal.apk"
+        fi
         
-        # Move and Rename ARMv7 (v7a)
-        cp "$BASE_PATH/app-armeabi-v7a-debug.apk" release_apks/Stellarium-ARMv7.apk
+        # 2. ARM64 (Modern Phones)
+        if [ -f "$BASE_PATH/app-arm64-v8a-release.apk" ]; then
+          cp "$BASE_PATH/app-arm64-v8a-release.apk" "release_apks/${APP_NAME}-ARM64.apk"
+        fi
         
-        # Move and Rename x86_64 (PC Emulator)
-        cp "$BASE_PATH/app-x86_64-debug.apk" release_apks/Stellarium-x64.apk
+        # 3. ARMv7 (Older/Budget Phones)
+        if [ -f "$BASE_PATH/app-armeabi-v7a-release.apk" ]; then
+          cp "$BASE_PATH/app-armeabi-v7a-release.apk" "release_apks/${APP_NAME}-ARMv7.apk"
+        fi
         
-        # Move and Rename x86 (Old Emulator)
-        cp "$BASE_PATH/app-x86-debug.apk" release_apks/Stellarium-x86.apk
+        # 4. x86_64 (PC Emulators)
+        if [ -f "$BASE_PATH/app-x86_64-release.apk" ]; then
+          cp "$BASE_PATH/app-x86_64-release.apk" "release_apks/${APP_NAME}-x64.apk"
+        fi
         
-        echo "APKs prepared successfully."
+        echo "Signed APKs prepared for release."
 
-    - name: Create Release
+    - name: Create Official Release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/heads/master')
       with:
-        tag_name: release-${{ github.run_number }}
-        name: Stellarium MVP Build ${{ github.run_number }}
+        tag_name: v1.0-official-${{ github.run_number }}
+        name: Stellarium Official App v1.0 (Signed)
+        body: |
+          # 🌟 Official Release v1.0
+          
+          This is the production-ready build of the Stellarium Foundation App.
+          
+          ### 🚀 Ultra-Optimized
+          - **Signed & Verified:** Authenticated with the official Stellarium key.
+          - **R8 & ZipAlign:** Max performance, min memory usage.
+          - **Java 17:** Runtime speed improvements.
+          
+          ### 📥 Downloads
+          - **Recommended:** `Stellarium-v1.0-Universal.apk`
+          - **Modern Phones:** `Stellarium-v1.0-ARM64.apk`
         draft: false
         prerelease: false
         files: |
-          release_apks/Stellarium-Universal.apk
-          release_apks/Stellarium-ARM64.apk
-          release_apks/Stellarium-ARMv7.apk
-          release_apks/Stellarium-x64.apk
-          release_apks/Stellarium-x86.apk
+          release_apks/*.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
