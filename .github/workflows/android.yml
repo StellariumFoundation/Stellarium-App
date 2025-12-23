@@ -74,9 +74,14 @@ jobs:
           cp "$BASE_PATH/app-armeabi-v7a-release.apk" "release_apks/${APP_NAME}-ARMv7.apk"
         fi
         
-        # 4. x86_64 (PC Emulators)
+        # 4. x86_64 (PC Emulators - 64bit)
         if [ -f "$BASE_PATH/app-x86_64-release.apk" ]; then
           cp "$BASE_PATH/app-x86_64-release.apk" "release_apks/${APP_NAME}-x64.apk"
+        fi
+
+        # 5. x86 (PC Emulators / Old Tablets - 32bit)
+        if [ -f "$BASE_PATH/app-x86-release.apk" ]; then
+          cp "$BASE_PATH/app-x86-release.apk" "release_apks/${APP_NAME}-x86.apk"
         fi
         
         echo "Signed APKs prepared for release."
@@ -85,21 +90,40 @@ jobs:
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/heads/master')
       with:
-        tag_name: v1.0-official-${{ github.run_number }}
-        name: Stellarium Official App v1.0 (Signed)
+        tag_name: v1.0-official
+        name: 🏛️ Stellarium Foundation App v1.0 (Official Release)
         body: |
-          # 🌟 Official Release v1.0
+          # The Stellarium Foundation: Version 1.0 
           
-          This is the production-ready build of the Stellarium Foundation App.
+          > *"An institution to propel global wealth creation and wellness."*
           
-          ### 🚀 Ultra-Optimized
-          - **Signed & Verified:** Authenticated with the official Stellarium key.
-          - **R8 & ZipAlign:** Max performance, min memory usage.
-          - **Java 17:** Runtime speed improvements.
+          We are proud to announce the **Official v1.0 Release** of the Stellarium mobile application. This build represents the first major milestone in providing direct access to our philosophy, tools, and community.
           
-          ### 📥 Downloads
-          - **Recommended:** `Stellarium-v1.0-Universal.apk`
-          - **Modern Phones:** `Stellarium-v1.0-ARM64.apk`
+          ---
+          
+          ### ✨ Highlights
+          
+          *   **🔐 Secure & Signed:** Authenticated with the official Stellarium cryptographic signature.
+          *   **⚡ Ultra-Optimized:** Built with R8 obfuscation and Zipalign for maximum speed and minimal footprint.
+          *   **🌍 Global Access:** Localized architecture support for devices ranging from high-end flagships to budget models.
+          *   **📚 Complete Library:** Access the Mastering Series, Policies, and Foundation Projects seamlessly.
+          
+          ---
+          
+          ### 📥 Download Guide
+          
+          **Which file should I download?**
+          
+          | Device Type | Recommended File |
+          | :--- | :--- |
+          | **Most Users (Recommended)** | `Stellarium-v1.0-Universal.apk` |
+          | **Newer Android Phones** | `Stellarium-v1.0-ARM64.apk` |
+          | **Older/Budget Phones** | `Stellarium-v1.0-ARMv7.apk` |
+          | **PC Emulators (Bluestacks/LDPlayer)** | `Stellarium-v1.0-x64.apk` or `x86.apk` |
+          
+          ---
+          
+          *Built with precision. Deployed for impact.*
         draft: false
         prerelease: false
         files: |
