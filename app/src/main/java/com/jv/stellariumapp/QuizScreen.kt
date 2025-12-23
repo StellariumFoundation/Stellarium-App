@@ -86,13 +86,21 @@ fun QuizScreen() {
             session = activeQuizSession!!,
             onReturnToMenu = { activeQuizSession = null },
             onRetake = { 
-                // Shuffle and restart the SAME category
-                val originalCategory = categories.find { it.name == activeQuizSession!!.categoryName }
+                // --- FIXED RETAKE LOGIC ---
+                // 1. Identify which category we are currently in
+                val currentCatName = activeQuizSession!!.categoryName
+                
+                // 2. Find that category in the MASTER list (which holds ALL questions)
+                val originalCategory = categories.find { it.name == currentCatName }
+                
                 if (originalCategory != null) {
-                    val shuffledQuestions = originalCategory.questions.shuffled().take(15)
+                    // 3. Shuffle the FULL list of questions and take a NEW random 15
+                    val newQuestions = originalCategory.questions.shuffled().take(15)
+                    
+                    // 4. Start a fresh session with these new questions
                     activeQuizSession = QuizSession(
                         categoryName = originalCategory.name,
-                        questions = shuffledQuestions
+                        questions = newQuestions
                     )
                 }
             }
@@ -214,10 +222,11 @@ fun QuizSessionView(
     onReturnToMenu: () -> Unit,
     onRetake: () -> Unit
 ) {
-    // Session State
-    var currentQuestionIndex by remember { mutableIntStateOf(0) }
-    var score by remember { mutableIntStateOf(0) }
-    var isFinished by remember { mutableStateOf(false) }
+    // Session State - Reset this when the session changes (key = session)
+    // This ensures state resets when Retake creates a new session object
+    var currentQuestionIndex by remember(session) { mutableIntStateOf(0) }
+    var score by remember(session) { mutableIntStateOf(0) }
+    var isFinished by remember(session) { mutableStateOf(false) }
 
     val question = session.questions.getOrNull(currentQuestionIndex)
 
@@ -343,7 +352,7 @@ fun QuizSessionView(
     }
 }
 
-// --- UPDATED Data Parsing Logic ---
+// --- Data Parsing Logic ---
 
 fun loadQuizzesFromAssets(context: Context): List<QuizCategory> {
     val categoryList = mutableListOf<QuizCategory>()
@@ -357,13 +366,12 @@ fun loadQuizzesFromAssets(context: Context): List<QuizCategory> {
     // Parse Root Object
     val rootObject = JSONObject(jsonString)
     
-    // CHANGED: "topics" instead of "categories"
+    // Use "topics" based on your updated JSON structure
     val topicsArray = rootObject.getJSONArray("topics")
 
     for (i in 0 until topicsArray.length()) {
         val topicObj = topicsArray.getJSONObject(i)
         
-        // CHANGED: "topicName" instead of "categoryName"
         val name = topicObj.getString("topicName")
         val questionsArray = topicObj.getJSONArray("questions")
         val questionList = mutableListOf<Question>()
