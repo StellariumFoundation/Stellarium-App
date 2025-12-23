@@ -35,6 +35,11 @@ data class Question(
     val correctIndex: Int
 )
 
+data class QuizSession(
+    val categoryName: String,
+    val questions: List<Question>
+)
+
 // --- Main Screen ---
 
 @Composable
@@ -171,7 +176,7 @@ fun QuizMenu(
 
 @Composable
 fun CategoryButton(category: QuizCategory, onClick: (QuizCategory) -> Unit) {
-    // Highlight the "General Knowledge" button slightly differently if desired
+    // Highlight the "General Knowledge" button slightly differently
     val isGeneral = category.name.contains("General Knowledge")
     val containerColor = if (isGeneral) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
     val contentColor = if (isGeneral) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
@@ -338,12 +343,7 @@ fun QuizSessionView(
     }
 }
 
-// --- Data Logic ---
-
-data class QuizSession(
-    val categoryName: String,
-    val questions: List<Question>
-)
+// --- UPDATED Data Parsing Logic ---
 
 fun loadQuizzesFromAssets(context: Context): List<QuizCategory> {
     val categoryList = mutableListOf<QuizCategory>()
@@ -357,14 +357,15 @@ fun loadQuizzesFromAssets(context: Context): List<QuizCategory> {
     // Parse Root Object
     val rootObject = JSONObject(jsonString)
     
-    // "categories" is inside the root object based on your structure
-    val categoriesArray = rootObject.getJSONArray("categories")
+    // CHANGED: "topics" instead of "categories"
+    val topicsArray = rootObject.getJSONArray("topics")
 
-    for (i in 0 until categoriesArray.length()) {
-        val catObj = categoriesArray.getJSONObject(i)
+    for (i in 0 until topicsArray.length()) {
+        val topicObj = topicsArray.getJSONObject(i)
         
-        val name = catObj.getString("categoryName")
-        val questionsArray = catObj.getJSONArray("questions")
+        // CHANGED: "topicName" instead of "categoryName"
+        val name = topicObj.getString("topicName")
+        val questionsArray = topicObj.getJSONArray("questions")
         val questionList = mutableListOf<Question>()
 
         for (j in 0 until questionsArray.length()) {

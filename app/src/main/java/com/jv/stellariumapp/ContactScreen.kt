@@ -14,6 +14,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import android.widget.Toast
 import android.content.Intent
+import android.net.Proxy
 import android.net.Uri
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +25,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
+import java.net.InetSocketAddress
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -35,6 +37,7 @@ fun ContactScreen() {
     var contact by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
     var isSending by remember { mutableStateOf(false) }
+    var useTor by remember { mutableStateOf(false) } // Toggle for Tor
     
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -110,6 +113,17 @@ to the Stellarium Foundation.""",
             )
         )
         
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Tor Toggle
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Checkbox(checked = useTor, onCheckedChange = { useTor = it })
+            Text(text = "Send Anonymously via Tor (Requires Orbot)", style = MaterialTheme.typography.bodyMedium)
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
         
         Button(
@@ -118,13 +132,13 @@ to the Stellarium Foundation.""",
                     isSending = true
                     scope.launch {
                         // 1. Try FormSubmit
-                        Log.d("Contact", "Attempting FormSubmit...")
-                        var success = sendViaFormSubmit(name, contact, message)
+                        Log.d("Contact", "Attempting FormSubmit via Tor: $useTor")
+                        var success = sendViaFormSubmit(name, contact, message, useTor)
                         
                         // 2. If Failed, Try EmailJS
                         if (!success) {
                             Log.d("Contact", "FormSubmit failed. Attempting EmailJS...")
-                            success = sendViaEmailJS(name, contact, message)
+                            success = sendViaEmailJS(name, contact, message, useTor)
                         }
 
                         isSending = false
@@ -136,7 +150,9 @@ to the Stellarium Foundation.""",
                             message = ""
                         } else {
                             // 3. Fallback to Android Intent
-                            Toast.makeText(context, "Network failed. Opening Email...", Toast.LENGTH_SHORT).show()
+                            val errorMsg = if (useTor) "Tor failed. Is Orbot running?" else "Network failed."
+                            Toast.makeText(context, "$errorMsg Opening Email...", Toast.LENGTH_SHORT).show()
+                            
                             val intent = Intent(Intent.ACTION_SENDTO).apply {
                                 data = Uri.parse("mailto:stellar.foundation.us@gmail.com")
                                 putExtra(Intent.EXTRA_SUBJECT, "Message from App: $name")
@@ -170,22 +186,39 @@ to the Stellarium Foundation.""",
 }
 
 /**
+ * Gets a Proxy object.
+ * If useTor is true, returns a SOCKS proxy for Orbot (localhost:9050).
+ * Otherwise returns Proxy.NO_PROXY.
+ */
+fun getProxy(useTor: Boolean): Proxy {
+    return if (useTor) {
+        // Standard Orbot SOCKS proxy port is 9050
+        Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", 9050))
+    } else {
+        Proxy.NO_PROXY
+    }
+}
+
+/**
  * METHOD 1: FormSubmit.co
  * Robust, no API keys needed on client side.
  */
-suspend fun sendViaFormSubmit(name: String, contact: String, message: String): Boolean {
+suspend fun sendViaFormSubmit(name: String, contact: String, message: String, useTor: Boolean): Boolean {
     return withContext(Dispatchers.IO) {
         var conn: HttpURLConnection? = null
         try {
             val targetEmail = "stellar.foundation.us@gmail.com"
             val url = URL("https://formsubmit.co/ajax/$targetEmail")
             
-            conn = url.openConnection() as HttpURLConnection
+            // Open connection using the appropriate proxy
+            val proxy = getProxy(useTor)
+            conn = url.openConnection(proxy) as HttpURLConnection
+            
             conn.requestMethod = "POST"
             conn.doOutput = true
             conn.doInput = true
-            conn.readTimeout = 10000
-            conn.connectTimeout = 10000
+            conn.readTimeout = 20000 // Longer timeout for Tor
+            conn.connectTimeout = 20000
             
             conn.setRequestProperty("Content-Type", "application/json")
             conn.setRequestProperty("Accept", "application/json")
@@ -228,15 +261,21 @@ suspend fun sendViaFormSubmit(name: String, contact: String, message: String): B
  * METHOD 2: EmailJS
  * Uses specific keys provided.
  */
-suspend fun sendViaEmailJS(name: String, contact: String, message: String): Boolean {
+suspend fun sendViaEmailJS(name: String, contact: String, message: String, useTor: Boolean): Boolean {
     return withContext(Dispatchers.IO) {
         var conn: HttpURLConnection? = null
         try {
             val url = URL("https://api.emailjs.com/api/v1.0/email/send")
-            conn = url.openConnection() as HttpURLConnection
+            
+            // Open connection using the appropriate proxy
+            val proxy = getProxy(useTor)
+            conn = url.openConnection(proxy) as HttpURLConnection
+            
             conn.requestMethod = "POST"
             conn.doOutput = true
             conn.doInput = true
+            conn.readTimeout = 20000
+            conn.connectTimeout = 20000
             conn.setRequestProperty("Content-Type", "application/json")
             
             // Keys provided by user
