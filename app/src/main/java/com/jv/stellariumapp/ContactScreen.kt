@@ -28,9 +28,6 @@ import java.net.HttpURLConnection
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.URL
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun ContactScreen() {
@@ -113,7 +110,7 @@ fun ContactScreen() {
             modifier = Modifier.fillMaxWidth()
         ) {
             Checkbox(checked = useProxy, onCheckedChange = { useProxy = it })
-            Text(text = "Route via Random Proxy (Anonymity Layer)", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Route via Anonymity Network (Auto-Retry)", style = MaterialTheme.typography.bodyMedium)
         }
 
         if (statusMessage.isNotEmpty()) {
@@ -134,19 +131,18 @@ fun ContactScreen() {
                     statusMessage = "Initiating secure transmission..."
                     
                     scope.launch {
-                        // 1. PRIMARY: Formspree
-                        val formspreeSuccess = retryRequest(3) {
-                            withContext(Dispatchers.Main) { statusMessage = "Routing via Formspree..." }
-                            sendViaFormspree(contact, message, useProxy)
+                        // 1. PRIMARY: Formspree with Robust Proxy Rotation
+                        val formspreeSuccess = sendWithProxyRotation(contact, message, useProxy, "formspree") { msg ->
+                            withContext(Dispatchers.Main) { statusMessage = msg }
                         }
 
                         if (formspreeSuccess) {
                             withContext(Dispatchers.Main) { handleSuccess() }
                         } else {
-                            // 2. BACKUP: FormSubmit
-                            withContext(Dispatchers.Main) { statusMessage = "Primary failed. Rerouting..." }
-                            val formSubmitSuccess = retryRequest(2) {
-                                sendViaFormSubmit(contact, message, useProxy)
+                            // 2. BACKUP: FormSubmit with Proxy Rotation
+                            withContext(Dispatchers.Main) { statusMessage = "Primary failed. Attempting Backup..." }
+                            val formSubmitSuccess = sendWithProxyRotation(contact, message, useProxy, "formsubmit") { msg ->
+                                withContext(Dispatchers.Main) { statusMessage = msg }
                             }
 
                             if (formSubmitSuccess) {
@@ -194,185 +190,186 @@ fun ContactScreen() {
     }
 }
 
-// --- UTILITIES ---
-
-suspend fun retryRequest(times: Int, block: suspend () -> Boolean): Boolean {
-    var currentAttempt = 0
-    while (currentAttempt < times) {
-        try {
-            if (block()) return true
-        } catch (e: Exception) {
-            Log.e("EnterpriseRetry", "Attempt $currentAttempt failed: ${e.message}")
-        }
-        currentAttempt++
-        delay(1500L)
-    }
-    return false
-}
-
-// --- PROXY LIST & MANAGEMENT ---
+// --- PROXY MANAGEMENT ---
 
 data class ProxyNode(val ip: String, val port: Int, val type: Proxy.Type)
 
 val anonymousProxies = listOf(
-    // --- HTTP PROXIES ---
-    ProxyNode("139.177.229.232", 8080, Proxy.Type.HTTP), // US (Palo Alto)
-    ProxyNode("139.177.229.211", 8080, Proxy.Type.HTTP), // US (Palo Alto)
-    ProxyNode("139.177.229.246", 8080, Proxy.Type.HTTP), // US (Palo Alto)
-    ProxyNode("182.53.202.208", 8080, Proxy.Type.HTTP),  // Thailand
-    ProxyNode("139.177.229.127", 8080, Proxy.Type.HTTP), // US (Palo Alto)
-    ProxyNode("139.59.1.14", 8080, Proxy.Type.HTTP),     // India
-    ProxyNode("167.71.182.192", 80, Proxy.Type.HTTP),    // US (Clifton)
-    ProxyNode("39.102.211.64", 80, Proxy.Type.HTTP),     // China
-    ProxyNode("121.43.146.222", 8081, Proxy.Type.HTTP),  // China
-    ProxyNode("47.119.22.156", 9098, Proxy.Type.HTTP),   // China
-    ProxyNode("134.209.29.120", 8080, Proxy.Type.HTTP),  // UK
-    ProxyNode("47.254.36.213", 50, Proxy.Type.HTTP),     // US (Minkler)
-    ProxyNode("139.177.229.31", 8080, Proxy.Type.HTTP),  // US (Palo Alto)
-    ProxyNode("13.80.134.180", 80, Proxy.Type.HTTP),     // Netherlands
-    ProxyNode("197.255.125.12", 80, Proxy.Type.HTTP),    // Ghana
-    ProxyNode("183.215.23.242", 9091, Proxy.Type.HTTP),  // China
+    // HTTP Proxies (Usually more reliable for REST)
+    ProxyNode("139.177.229.232", 8080, Proxy.Type.HTTP), 
+    ProxyNode("139.177.229.211", 8080, Proxy.Type.HTTP), 
+    ProxyNode("182.53.202.208", 8080, Proxy.Type.HTTP),  
+    ProxyNode("139.177.229.127", 8080, Proxy.Type.HTTP), 
+    ProxyNode("139.59.1.14", 8080, Proxy.Type.HTTP),     
+    ProxyNode("167.71.182.192", 80, Proxy.Type.HTTP),    
+    ProxyNode("134.209.29.120", 8080, Proxy.Type.HTTP),  
+    ProxyNode("13.80.134.180", 80, Proxy.Type.HTTP),     
+    ProxyNode("197.255.125.12", 80, Proxy.Type.HTTP),    
 
-    // --- SOCKS5 PROXIES ---
-    // Note: SOCKS4 proxies from your list (e.g. 185.26.168.17) are excluded 
-    // because Android/Java defaults to SOCKS5 and fails with SOCKS4.
-    ProxyNode("142.54.237.34", 4145, Proxy.Type.SOCKS),  // US (Los Angeles)
-    ProxyNode("68.1.210.163", 4145, Proxy.Type.SOCKS),   // US (San Diego)
-    ProxyNode("203.189.156.212", 1080, Proxy.Type.SOCKS),// Cambodia
-    ProxyNode("13.218.86.1", 8601, Proxy.Type.SOCKS),    // US (Ashburn)
-    ProxyNode("67.201.59.70", 4145, Proxy.Type.SOCKS),   // US (El Segundo)
-    ProxyNode("184.178.172.11", 4145, Proxy.Type.SOCKS), // US (Roanoke)
-    ProxyNode("37.192.133.82", 1080, Proxy.Type.SOCKS),  // Russia
-    ProxyNode("24.249.199.4", 4145, Proxy.Type.SOCKS),   // US (San Diego)
-    ProxyNode("40.192.14.136", 17630, Proxy.Type.SOCKS), // India
-    ProxyNode("193.233.254.8", 1080, Proxy.Type.SOCKS),  // Germany
-    ProxyNode("192.111.139.163", 19404, Proxy.Type.SOCKS),// US (Atlanta)
-    ProxyNode("40.177.211.224", 4221, Proxy.Type.SOCKS), // Canada
-    ProxyNode("16.78.93.162", 59229, Proxy.Type.SOCKS),  // Indonesia
-    ProxyNode("39.108.80.57", 1080, Proxy.Type.SOCKS),   // China
-    ProxyNode("203.189.141.138", 1080, Proxy.Type.SOCKS),// Cambodia
-    ProxyNode("104.248.197.67", 1080, Proxy.Type.SOCKS), // Netherlands
-    ProxyNode("18.143.173.102", 134, Proxy.Type.SOCKS),  // Singapore
-    ProxyNode("129.150.39.251", 8000, Proxy.Type.SOCKS), // Singapore
-    ProxyNode("16.78.104.244", 52959, Proxy.Type.SOCKS), // Indonesia
-    ProxyNode("157.175.170.170", 799, Proxy.Type.SOCKS)  // Bahrain
+    // SOCKS5 Proxies (Only use if validated as SOCKS5)
+    ProxyNode("142.54.237.34", 4145, Proxy.Type.SOCKS),  
+    ProxyNode("68.1.210.163", 4145, Proxy.Type.SOCKS),   
+    ProxyNode("203.189.156.212", 1080, Proxy.Type.SOCKS),
+    ProxyNode("13.218.86.1", 8601, Proxy.Type.SOCKS),    
+    ProxyNode("67.201.59.70", 4145, Proxy.Type.SOCKS),   
+    ProxyNode("184.178.172.11", 4145, Proxy.Type.SOCKS), 
+    ProxyNode("37.192.133.82", 1080, Proxy.Type.SOCKS),  
+    ProxyNode("24.249.199.4", 4145, Proxy.Type.SOCKS),   
+    ProxyNode("40.192.14.136", 17630, Proxy.Type.SOCKS), 
+    ProxyNode("193.233.254.8", 1080, Proxy.Type.SOCKS),  
+    ProxyNode("192.111.139.163", 19404, Proxy.Type.SOCKS),
+    ProxyNode("40.177.211.224", 4221, Proxy.Type.SOCKS), 
+    ProxyNode("16.78.93.162", 59229, Proxy.Type.SOCKS),  
+    ProxyNode("39.108.80.57", 1080, Proxy.Type.SOCKS),   
+    ProxyNode("203.189.141.138", 1080, Proxy.Type.SOCKS),
+    ProxyNode("104.248.197.67", 1080, Proxy.Type.SOCKS), 
+    ProxyNode("18.143.173.102", 134, Proxy.Type.SOCKS),  
+    ProxyNode("129.150.39.251", 8000, Proxy.Type.SOCKS), 
+    ProxyNode("16.78.104.244", 52959, Proxy.Type.SOCKS), 
+    ProxyNode("157.175.170.170", 799, Proxy.Type.SOCKS)  
 )
 
-fun getProxy(useProxy: Boolean): Proxy {
-    return if (useProxy) {
-        val node = anonymousProxies.random()
-        Log.d("Proxy", "Routing via: ${node.ip}:${node.port} (${node.type})")
-        Proxy(node.type, InetSocketAddress(node.ip, node.port))
-    } else {
-        Proxy.NO_PROXY
+// --- INTELLIGENT SENDING LOGIC ---
+
+suspend fun sendWithProxyRotation(
+    contact: String, 
+    message: String, 
+    useProxy: Boolean, 
+    service: String,
+    updateStatus: suspend (String) -> Unit
+): Boolean {
+    return withContext(Dispatchers.IO) {
+        // If proxy is disabled, just try direct once
+        if (!useProxy) {
+            return@withContext if (service == "formspree") {
+                sendViaFormspree(contact, message, Proxy.NO_PROXY)
+            } else {
+                sendViaFormSubmit(contact, message, Proxy.NO_PROXY)
+            }
+        }
+
+        // If proxy enabled, shuffle and try ALL of them
+        val shuffledProxies = anonymousProxies.shuffled()
+        var attempt = 1
+        
+        for (node in shuffledProxies) {
+            updateStatus("Routing via Proxy $attempt/${shuffledProxies.size} (${node.ip})...")
+            
+            val proxy = Proxy(node.type, InetSocketAddress(node.ip, node.port))
+            val success = if (service == "formspree") {
+                sendViaFormspree(contact, message, proxy)
+            } else {
+                sendViaFormSubmit(contact, message, proxy)
+            }
+
+            if (success) {
+                Log.d("ProxyManager", "Success with ${node.ip}")
+                return@withContext true
+            }
+            
+            // Short delay before next attempt
+            Log.e("ProxyManager", "Failed with ${node.ip}. Retrying...")
+            attempt++
+            // delay(200) // Optional: very short delay to not freeze UI
+        }
+
+        return@withContext false // All proxies failed
     }
 }
 
 // --- PRIMARY CHANNEL: Formspree ---
-suspend fun sendViaFormspree(contact: String, message: String, useProxy: Boolean): Boolean {
-    return withContext(Dispatchers.IO) {
-        var conn: HttpURLConnection? = null
+fun sendViaFormspree(contact: String, message: String, proxy: Proxy): Boolean {
+    var conn: HttpURLConnection? = null
+    try {
+        val formId = "mzdpovoa" 
+        val url = URL("https://formspree.io/f/$formId")
+        
+        conn = url.openConnection(proxy) as HttpURLConnection
+        conn.requestMethod = "POST"
+        conn.doOutput = true
+        conn.doInput = true
+        conn.readTimeout = 8000 // Fast timeout for proxies
+        conn.connectTimeout = 8000
+        
+        conn.setRequestProperty("Content-Type", "application/json")
+        conn.setRequestProperty("Accept", "application/json")
+        
+        val userAgents = listOf(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15"
+        )
+        conn.setRequestProperty("User-Agent", userAgents.random())
+
+        val jsonPayload = JSONObject()
+        jsonPayload.put("email", if (contact.contains("@")) contact else "no-reply@stellarium.app")
+        jsonPayload.put("message", message)
+        jsonPayload.put("contact_details", contact)
+
+        val writer = OutputStreamWriter(conn.outputStream)
+        writer.write(jsonPayload.toString())
+        writer.flush()
+        writer.close()
+
+        val responseCode = conn.responseCode
+        // Read response to close stream cleanly
         try {
-            val formId = "mzdpovoa" 
-            val url = URL("https://formspree.io/f/$formId")
-            
-            val proxy = getProxy(useProxy)
-            conn = url.openConnection(proxy) as HttpURLConnection
-            
-            conn.requestMethod = "POST"
-            conn.doOutput = true
-            conn.doInput = true
-            conn.readTimeout = 20000 
-            conn.connectTimeout = 20000
-            
-            conn.setRequestProperty("Content-Type", "application/json")
-            conn.setRequestProperty("Accept", "application/json")
-            
-            val userAgents = listOf(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15",
-                "Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36"
-            )
-            conn.setRequestProperty("User-Agent", userAgents.random())
+            BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
+        } catch (e: Exception) {}
 
-            val jsonPayload = JSONObject()
-            jsonPayload.put("email", if (contact.contains("@")) contact else "no-reply@stellarium.app")
-            jsonPayload.put("message", message)
-            jsonPayload.put("contact_details", contact)
-
-            val writer = OutputStreamWriter(conn.outputStream)
-            writer.write(jsonPayload.toString())
-            writer.flush()
-            writer.close()
-
-            val responseCode = conn.responseCode
-            Log.d("Formspree", "Status: $responseCode")
-
-            try {
-                BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
-            } catch (e: Exception) {}
-
-            return@withContext responseCode == 200
-            
-        } catch (e: Exception) {
-            Log.e("Formspree", "Error: ${e.message}")
-            return@withContext false
-        } finally {
-            conn?.disconnect()
-        }
+        return responseCode == 200
+        
+    } catch (e: Exception) {
+        // Log.e("Formspree", "Error: ${e.message}") // Optional logging
+        return false
+    } finally {
+        conn?.disconnect()
     }
 }
 
 // --- BACKUP CHANNEL: FormSubmit ---
-suspend fun sendViaFormSubmit(contact: String, message: String, useProxy: Boolean): Boolean {
-    return withContext(Dispatchers.IO) {
-        var conn: HttpURLConnection? = null
-        try {
-            val targetEmail = "stellar.foundation.us@gmail.com"
-            val url = URL("https://formsubmit.co/ajax/$targetEmail")
-            
-            val proxy = getProxy(useProxy)
-            conn = url.openConnection(proxy) as HttpURLConnection
-            
-            conn.requestMethod = "POST"
-            conn.doOutput = true
-            conn.doInput = true
-            conn.readTimeout = 20000 
-            conn.connectTimeout = 20000
-            
-            conn.setRequestProperty("Content-Type", "application/json")
-            conn.setRequestProperty("Accept", "application/json")
-            
-            val userAgents = listOf(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15"
-            )
-            conn.setRequestProperty("User-Agent", userAgents.random())
+fun sendViaFormSubmit(contact: String, message: String, proxy: Proxy): Boolean {
+    var conn: HttpURLConnection? = null
+    try {
+        val targetEmail = "stellar.foundation.us@gmail.com"
+        val url = URL("https://formsubmit.co/ajax/$targetEmail")
+        
+        conn = url.openConnection(proxy) as HttpURLConnection
+        conn.requestMethod = "POST"
+        conn.doOutput = true
+        conn.doInput = true
+        conn.readTimeout = 8000 
+        conn.connectTimeout = 8000
+        
+        conn.setRequestProperty("Content-Type", "application/json")
+        conn.setRequestProperty("Accept", "application/json")
+        
+        val userAgents = listOf(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15"
+        )
+        conn.setRequestProperty("User-Agent", userAgents.random())
 
-            val jsonPayload = JSONObject()
-            jsonPayload.put("name", "Stellarium App User")
-            jsonPayload.put("email", if (contact.contains("@")) contact else "no-reply@stellarium.app") 
-            jsonPayload.put("contact_details", contact)
-            jsonPayload.put("message", message)
-            
-            jsonPayload.put("_subject", "Stellarium Mobile App Submission")
-            jsonPayload.put("_captcha", "false")
-            jsonPayload.put("_template", "table")
-            jsonPayload.put("_cc", "john.victor.the.one@gmail.com")
+        val jsonPayload = JSONObject()
+        jsonPayload.put("name", "Stellarium App User")
+        jsonPayload.put("email", if (contact.contains("@")) contact else "no-reply@stellarium.app") 
+        jsonPayload.put("contact_details", contact)
+        jsonPayload.put("message", message)
+        jsonPayload.put("_subject", "Stellarium Mobile App Submission")
+        jsonPayload.put("_captcha", "false")
+        jsonPayload.put("_template", "table")
+        jsonPayload.put("_cc", "john.victor.the.one@gmail.com")
 
-            val writer = OutputStreamWriter(conn.outputStream)
-            writer.write(jsonPayload.toString())
-            writer.flush()
-            writer.close()
+        val writer = OutputStreamWriter(conn.outputStream)
+        writer.write(jsonPayload.toString())
+        writer.flush()
+        writer.close()
 
-            val responseCode = conn.responseCode
-            return@withContext responseCode == 200
-            
-        } catch (e: Exception) {
-            Log.e("FormSubmit", "Error: ${e.message}")
-            return@withContext false
-        } finally {
-            conn?.disconnect()
-        }
+        val responseCode = conn.responseCode
+        return responseCode == 200
+        
+    } catch (e: Exception) {
+        return false
+    } finally {
+        conn?.disconnect()
     }
 }

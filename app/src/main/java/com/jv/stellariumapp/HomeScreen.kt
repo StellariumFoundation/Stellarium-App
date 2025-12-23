@@ -43,58 +43,61 @@ fun HomeScreen() {
         // --- 1. Title ---
         Text(
             text = "STELLARIUM FOUNDATION",
-            style = MaterialTheme.typography.displayMedium,
+            style = MaterialTheme.typography.headlineMedium, // Smaller than displayMedium
             color = MaterialTheme.colorScheme.primary,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.Bold
         )
         
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // --- 2. Website Button (Subtitle) ---
         OutlinedButton(
             onClick = {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.stellarium.ddns-ip.net/home"))
                 context.startActivity(intent)
-            }
+            },
+            modifier = Modifier.height(36.dp)
         ) {
-            Text("Visit Official Website")
+            Text("Visit Official Website", fontSize = 12.sp)
         }
         
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
         
         // --- 3. Introduction ---
         Text(
             text = "An institution to propel global wealth creation and wellness.",
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleSmall, // Much smaller
             color = MaterialTheme.colorScheme.secondary,
             textAlign = TextAlign.Center,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            lineHeight = 20.sp
         )
         
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         
         Text(
             text = "Through high-profile advising, technology, wisdom, and innovative fortitude, we implement commoditizing solutions in business, policy, finance, personal wealth creation, relationships, and branding.",
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall, // Smaller body text
             textAlign = TextAlign.Center,
-            lineHeight = 22.sp
+            lineHeight = 16.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
         
         // --- 4. Interaction Prompt ---
         Text(
             text = "How would you like to interact?",
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.tertiary,
             textAlign = TextAlign.Center
         )
         
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // --- 5. Topics Grid (3 Columns x 2 Rows) ---
         
-        // Row 1
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TopicCard(
                 icon = Icons.Default.Public,
@@ -124,7 +127,6 @@ fun HomeScreen() {
         
         Spacer(modifier = Modifier.height(8.dp))
         
-        // Row 2
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TopicCard(
                 icon = Icons.Default.Group,
@@ -174,28 +176,28 @@ fun HomeScreen() {
                     imageVector = selectedTopic!!.icon, 
                     contentDescription = null, 
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(56.dp)
+                    modifier = Modifier.size(48.dp)
                 )
                 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 
                 Text(
                     text = selectedTopic!!.title,
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge, // Smaller Header inside sheet
                     color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.Bold
                 )
                 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 
                 Text(
                     text = selectedTopic!!.description,
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontSize = 16.sp, 
-                        lineHeight = 26.sp
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 14.sp, 
+                        lineHeight = 22.sp
                     ),
-                    textAlign = TextAlign.Start, // Easier to read long text
+                    textAlign = TextAlign.Start, 
                     color = Color(0xFFEEEEEE)
                 )
                 
@@ -214,16 +216,16 @@ fun TopicCard(
 ) {
     OutlinedCard(
         onClick = onClick,
-        modifier = modifier.height(110.dp), // Increased height for better proportions
+        modifier = modifier.height(90.dp), // Reduced height
         colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(8.dp),
+                .padding(4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -231,12 +233,12 @@ fun TopicCard(
                 imageVector = icon, 
                 contentDescription = null, 
                 tint = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(28.dp) // Smaller Icon
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = title, 
-                style = MaterialTheme.typography.labelLarge, 
+                style = MaterialTheme.typography.labelSmall, // Smaller Text
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
