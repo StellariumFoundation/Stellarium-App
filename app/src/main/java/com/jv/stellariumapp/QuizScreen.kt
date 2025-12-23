@@ -12,9 +12,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -44,10 +47,21 @@ fun QuizScreen() {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Load JSON Data
+    // Load JSON Data & Create "All" Category
     LaunchedEffect(Unit) {
         try {
-            categories = loadQuizzesFromAssets(context)
+            val loadedCategories = loadQuizzesFromAssets(context)
+            
+            // Create a "General / All" Category by combining everyone
+            val allQuestions = loadedCategories.flatMap { it.questions }
+            val generalCategory = QuizCategory(
+                name = "General Knowledge (All Topics)",
+                questions = allQuestions
+            )
+            
+            // Add "General" to the top of the list
+            categories = listOf(generalCategory) + loadedCategories
+            
             isLoading = false
         } catch (e: Exception) {
             e.printStackTrace()
@@ -65,7 +79,18 @@ fun QuizScreen() {
         }
         QuizSessionView(
             session = activeQuizSession!!,
-            onQuizComplete = { activeQuizSession = null } // Go back to menu
+            onReturnToMenu = { activeQuizSession = null },
+            onRetake = { 
+                // Shuffle and restart the SAME category
+                val originalCategory = categories.find { it.name == activeQuizSession!!.categoryName }
+                if (originalCategory != null) {
+                    val shuffledQuestions = originalCategory.questions.shuffled().take(15)
+                    activeQuizSession = QuizSession(
+                        categoryName = originalCategory.name,
+                        questions = shuffledQuestions
+                    )
+                }
+            }
         )
     } else {
         // Show Category Selection Menu
@@ -100,17 +125,22 @@ fun QuizMenu(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // --- Explanatory Header ---
         Text(
-            text = "Knowledge Base",
+            text = "Stellarium Knowledge Base",
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.primary,
             textAlign = TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
         Text(
-            text = "Select a category to begin",
+            text = "Master the principles of the Foundation. Select a module below or choose 'General Knowledge' to test yourself on everything.",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            lineHeight = 20.sp
         )
         
         Spacer(modifier = Modifier.height(24.dp))
@@ -124,11 +154,11 @@ fun QuizMenu(
                 Text(text = error, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
             }
         } else {
-            // 3x3 Grid (Fixed count 3 columns)
+            // Grid
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(categories) { category ->
@@ -141,33 +171,44 @@ fun QuizMenu(
 
 @Composable
 fun CategoryButton(category: QuizCategory, onClick: (QuizCategory) -> Unit) {
+    // Highlight the "General Knowledge" button slightly differently if desired
+    val isGeneral = category.name.contains("General Knowledge")
+    val containerColor = if (isGeneral) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+    val contentColor = if (isGeneral) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
+
     OutlinedCard(
         onClick = { onClick(category) },
         modifier = Modifier
-            .aspectRatio(1f) // Makes it square
+            .aspectRatio(1f)
             .fillMaxWidth(),
         colors = CardDefaults.outlinedCardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = containerColor
         )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(8.dp),
+                .padding(4.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = category.name,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
                 textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.primary
+                color = contentColor,
+                fontWeight = FontWeight.Bold,
+                minLines = 2
             )
         }
     }
 }
 
 @Composable
-fun QuizSessionView(session: QuizSession, onQuizComplete: () -> Unit) {
+fun QuizSessionView(
+    session: QuizSession, 
+    onReturnToMenu: () -> Unit,
+    onRetake: () -> Unit
+) {
     // Session State
     var currentQuestionIndex by remember { mutableIntStateOf(0) }
     var score by remember { mutableIntStateOf(0) }
@@ -178,19 +219,20 @@ fun QuizSessionView(session: QuizSession, onQuizComplete: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState()), // Scrollable for long text
+            .padding(16.dp) // Reduced padding
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         if (isFinished || question == null) {
             // --- Result Screen ---
-            Spacer(modifier = Modifier.height(60.dp))
-            Text(text = "Quiz Completed!", style = MaterialTheme.typography.headlineMedium)
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(40.dp))
+            Text(text = "Assessment Complete", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "${session.categoryName}",
+                text = session.categoryName,
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.secondary
+                color = MaterialTheme.colorScheme.secondary,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(32.dp))
             
@@ -198,16 +240,35 @@ fun QuizSessionView(session: QuizSession, onQuizComplete: () -> Unit) {
             Text(
                 text = "$score / ${session.questions.size}",
                 style = MaterialTheme.typography.displayLarge,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Correct Answers",
+                style = MaterialTheme.typography.labelLarge
             )
             
             Spacer(modifier = Modifier.height(48.dp))
             
+            // Retake Button
             Button(
-                onClick = onQuizComplete,
+                onClick = onRetake,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.tertiary
+                )
+            ) {
+                Text("Retake Quiz (New Questions)")
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Menu Button
+            OutlinedButton(
+                onClick = onReturnToMenu,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Return to Menu")
+                Text("Return to Topics")
             }
 
         } else {
@@ -217,29 +278,34 @@ fun QuizSessionView(session: QuizSession, onQuizComplete: () -> Unit) {
             LinearProgressIndicator(
                 progress = { (currentQuestionIndex + 1).toFloat() / session.questions.size },
                 modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.tertiary
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            
+            Spacer(modifier = Modifier.height(12.dp)) // Tight spacing
+            
             Text(
                 text = "Question ${currentQuestionIndex + 1} of ${session.questions.size}",
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.secondary
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(12.dp)) // Tight spacing
 
             // Question Text
             Text(
                 text = question.text,
                 style = MaterialTheme.typography.titleLarge,
                 textAlign = TextAlign.Center,
-                minLines = 3
+                fontWeight = FontWeight.SemiBold,
+                minLines = 3,
+                lineHeight = 24.sp
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp)) // Tight spacing
 
-            // Options Buttons
+            // Options Buttons (White Background)
             question.options.forEachIndexed { index, option ->
-                OutlinedButton(
+                Button(
                     onClick = {
                         if (index == question.correctIndex) {
                             score++
@@ -254,9 +320,18 @@ fun QuizSessionView(session: QuizSession, onQuizComplete: () -> Unit) {
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 6.dp)
+                        .padding(vertical = 4.dp), // Tighter vertical padding
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White, // White Background
+                        contentColor = Color.Black    // Dark Text
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                 ) {
-                    Text(text = option, textAlign = TextAlign.Center)
+                    Text(
+                        text = option, 
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                    )
                 }
             }
         }
