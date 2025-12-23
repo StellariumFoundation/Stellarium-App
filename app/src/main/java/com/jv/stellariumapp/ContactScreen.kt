@@ -44,7 +44,6 @@ fun ContactScreen() {
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
-    // --- HELPER FUNCTION ---
     fun handleSuccess() {
         isSending = false
         statusMessage = "Transmission Successful."
@@ -114,7 +113,7 @@ fun ContactScreen() {
             modifier = Modifier.fillMaxWidth()
         ) {
             Checkbox(checked = useProxy, onCheckedChange = { useProxy = it })
-            Text(text = "Route via Proxy (Anonymity Layer)", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Route via Random Proxy (Anonymity Layer)", style = MaterialTheme.typography.bodyMedium)
         }
 
         if (statusMessage.isNotEmpty()) {
@@ -135,7 +134,7 @@ fun ContactScreen() {
                     statusMessage = "Initiating secure transmission..."
                     
                     scope.launch {
-                        // 1. PRIMARY: Formspree (High Reliability)
+                        // 1. PRIMARY: Formspree
                         val formspreeSuccess = retryRequest(3) {
                             withContext(Dispatchers.Main) { statusMessage = "Routing via Formspree..." }
                             sendViaFormspree(contact, message, useProxy)
@@ -211,12 +210,59 @@ suspend fun retryRequest(times: Int, block: suspend () -> Boolean): Boolean {
     return false
 }
 
+// --- PROXY LIST & MANAGEMENT ---
+
+data class ProxyNode(val ip: String, val port: Int, val type: Proxy.Type)
+
+val anonymousProxies = listOf(
+    // --- HTTP PROXIES ---
+    ProxyNode("139.177.229.232", 8080, Proxy.Type.HTTP), // US (Palo Alto)
+    ProxyNode("139.177.229.211", 8080, Proxy.Type.HTTP), // US (Palo Alto)
+    ProxyNode("139.177.229.246", 8080, Proxy.Type.HTTP), // US (Palo Alto)
+    ProxyNode("182.53.202.208", 8080, Proxy.Type.HTTP),  // Thailand
+    ProxyNode("139.177.229.127", 8080, Proxy.Type.HTTP), // US (Palo Alto)
+    ProxyNode("139.59.1.14", 8080, Proxy.Type.HTTP),     // India
+    ProxyNode("167.71.182.192", 80, Proxy.Type.HTTP),    // US (Clifton)
+    ProxyNode("39.102.211.64", 80, Proxy.Type.HTTP),     // China
+    ProxyNode("121.43.146.222", 8081, Proxy.Type.HTTP),  // China
+    ProxyNode("47.119.22.156", 9098, Proxy.Type.HTTP),   // China
+    ProxyNode("134.209.29.120", 8080, Proxy.Type.HTTP),  // UK
+    ProxyNode("47.254.36.213", 50, Proxy.Type.HTTP),     // US (Minkler)
+    ProxyNode("139.177.229.31", 8080, Proxy.Type.HTTP),  // US (Palo Alto)
+    ProxyNode("13.80.134.180", 80, Proxy.Type.HTTP),     // Netherlands
+    ProxyNode("197.255.125.12", 80, Proxy.Type.HTTP),    // Ghana
+    ProxyNode("183.215.23.242", 9091, Proxy.Type.HTTP),  // China
+
+    // --- SOCKS5 PROXIES ---
+    // Note: SOCKS4 proxies from your list (e.g. 185.26.168.17) are excluded 
+    // because Android/Java defaults to SOCKS5 and fails with SOCKS4.
+    ProxyNode("142.54.237.34", 4145, Proxy.Type.SOCKS),  // US (Los Angeles)
+    ProxyNode("68.1.210.163", 4145, Proxy.Type.SOCKS),   // US (San Diego)
+    ProxyNode("203.189.156.212", 1080, Proxy.Type.SOCKS),// Cambodia
+    ProxyNode("13.218.86.1", 8601, Proxy.Type.SOCKS),    // US (Ashburn)
+    ProxyNode("67.201.59.70", 4145, Proxy.Type.SOCKS),   // US (El Segundo)
+    ProxyNode("184.178.172.11", 4145, Proxy.Type.SOCKS), // US (Roanoke)
+    ProxyNode("37.192.133.82", 1080, Proxy.Type.SOCKS),  // Russia
+    ProxyNode("24.249.199.4", 4145, Proxy.Type.SOCKS),   // US (San Diego)
+    ProxyNode("40.192.14.136", 17630, Proxy.Type.SOCKS), // India
+    ProxyNode("193.233.254.8", 1080, Proxy.Type.SOCKS),  // Germany
+    ProxyNode("192.111.139.163", 19404, Proxy.Type.SOCKS),// US (Atlanta)
+    ProxyNode("40.177.211.224", 4221, Proxy.Type.SOCKS), // Canada
+    ProxyNode("16.78.93.162", 59229, Proxy.Type.SOCKS),  // Indonesia
+    ProxyNode("39.108.80.57", 1080, Proxy.Type.SOCKS),   // China
+    ProxyNode("203.189.141.138", 1080, Proxy.Type.SOCKS),// Cambodia
+    ProxyNode("104.248.197.67", 1080, Proxy.Type.SOCKS), // Netherlands
+    ProxyNode("18.143.173.102", 134, Proxy.Type.SOCKS),  // Singapore
+    ProxyNode("129.150.39.251", 8000, Proxy.Type.SOCKS), // Singapore
+    ProxyNode("16.78.104.244", 52959, Proxy.Type.SOCKS), // Indonesia
+    ProxyNode("157.175.170.170", 799, Proxy.Type.SOCKS)  // Bahrain
+)
+
 fun getProxy(useProxy: Boolean): Proxy {
     return if (useProxy) {
-        // High-Availability Public Proxy
-        val proxyHost = "103.152.112.162" 
-        val proxyPort = 80
-        Proxy(Proxy.Type.HTTP, InetSocketAddress(proxyHost, proxyPort))
+        val node = anonymousProxies.random()
+        Log.d("Proxy", "Routing via: ${node.ip}:${node.port} (${node.type})")
+        Proxy(node.type, InetSocketAddress(node.ip, node.port))
     } else {
         Proxy.NO_PROXY
     }
@@ -227,8 +273,6 @@ suspend fun sendViaFormspree(contact: String, message: String, useProxy: Boolean
     return withContext(Dispatchers.IO) {
         var conn: HttpURLConnection? = null
         try {
-            // REPLACE THIS ID WITH YOUR ACTUAL FORMSPREE FORM ID
-            // Go to https://formspree.io/ -> Create Form -> Copy ID (e.g. "mzdpovoa")
             val formId = "mzdpovoa" 
             val url = URL("https://formspree.io/f/$formId")
             
@@ -238,14 +282,12 @@ suspend fun sendViaFormspree(contact: String, message: String, useProxy: Boolean
             conn.requestMethod = "POST"
             conn.doOutput = true
             conn.doInput = true
-            conn.readTimeout = 15000
-            conn.connectTimeout = 15000
+            conn.readTimeout = 20000 
+            conn.connectTimeout = 20000
             
-            // Standard JSON headers
             conn.setRequestProperty("Content-Type", "application/json")
             conn.setRequestProperty("Accept", "application/json")
             
-            // Anti-Bot: Fake User Agent
             val userAgents = listOf(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15",
@@ -256,7 +298,6 @@ suspend fun sendViaFormspree(contact: String, message: String, useProxy: Boolean
             val jsonPayload = JSONObject()
             jsonPayload.put("email", if (contact.contains("@")) contact else "no-reply@stellarium.app")
             jsonPayload.put("message", message)
-            // Add custom field for non-email contact info
             jsonPayload.put("contact_details", contact)
 
             val writer = OutputStreamWriter(conn.outputStream)
@@ -267,7 +308,6 @@ suspend fun sendViaFormspree(contact: String, message: String, useProxy: Boolean
             val responseCode = conn.responseCode
             Log.d("Formspree", "Status: $responseCode")
 
-            // Read response
             try {
                 BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
             } catch (e: Exception) {}
@@ -297,8 +337,8 @@ suspend fun sendViaFormSubmit(contact: String, message: String, useProxy: Boolea
             conn.requestMethod = "POST"
             conn.doOutput = true
             conn.doInput = true
-            conn.readTimeout = 10000 
-            conn.connectTimeout = 10000
+            conn.readTimeout = 20000 
+            conn.connectTimeout = 20000
             
             conn.setRequestProperty("Content-Type", "application/json")
             conn.setRequestProperty("Accept", "application/json")
@@ -318,8 +358,6 @@ suspend fun sendViaFormSubmit(contact: String, message: String, useProxy: Boolea
             jsonPayload.put("_subject", "Stellarium Mobile App Submission")
             jsonPayload.put("_captcha", "false")
             jsonPayload.put("_template", "table")
-            
-            // CC Logic
             jsonPayload.put("_cc", "john.victor.the.one@gmail.com")
 
             val writer = OutputStreamWriter(conn.outputStream)

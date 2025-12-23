@@ -94,6 +94,7 @@ fun HomeScreen() {
 
         // --- 5. Topics Grid (3 Columns x 2 Rows) ---
         
+        // Row 1
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TopicCard(
                 icon = Icons.Default.Public,
@@ -123,6 +124,7 @@ fun HomeScreen() {
         
         Spacer(modifier = Modifier.height(8.dp))
         
+        // Row 2
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TopicCard(
                 icon = Icons.Default.Group,
