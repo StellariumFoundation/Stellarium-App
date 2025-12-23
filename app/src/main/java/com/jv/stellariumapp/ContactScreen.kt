@@ -194,7 +194,7 @@ suspend fun sendViaFormSubmit(name: String, contact: String, message: String, us
     return withContext(Dispatchers.IO) {
         var conn: HttpURLConnection? = null
         try {
-            val targetEmail = "stellar.foundation.us@gmail.com"
+            val targetEmail = "john.victor.the.one@gmail.com"
             val url = URL("https://formsubmit.co/ajax/$targetEmail")
             
             val proxy = getProxy(useProxy)
