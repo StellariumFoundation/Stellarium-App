@@ -14,7 +14,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import android.widget.Toast
 import android.content.Intent
-import android.net.Proxy
 import android.net.Uri
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +25,7 @@ import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.InetSocketAddress
+import java.net.Proxy // Ensure this is java.net.Proxy
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -37,7 +37,7 @@ fun ContactScreen() {
     var contact by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
     var isSending by remember { mutableStateOf(false) }
-    var useTor by remember { mutableStateOf(false) } // Toggle for Tor
+    var useProxy by remember { mutableStateOf(false) } // Toggle for Proxy
     
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -115,13 +115,13 @@ to the Stellarium Foundation.""",
         
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Tor Toggle
+        // Proxy Toggle
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Checkbox(checked = useTor, onCheckedChange = { useTor = it })
-            Text(text = "Send Anonymously via Tor (Requires Orbot)", style = MaterialTheme.typography.bodyMedium)
+            Checkbox(checked = useProxy, onCheckedChange = { useProxy = it })
+            Text(text = "Hide my IP (Use Public Proxy)", style = MaterialTheme.typography.bodyMedium)
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -132,13 +132,13 @@ to the Stellarium Foundation.""",
                     isSending = true
                     scope.launch {
                         // 1. Try FormSubmit
-                        Log.d("Contact", "Attempting FormSubmit via Tor: $useTor")
-                        var success = sendViaFormSubmit(name, contact, message, useTor)
+                        Log.d("Contact", "Attempting FormSubmit. Proxy: $useProxy")
+                        var success = sendViaFormSubmit(name, contact, message, useProxy)
                         
                         // 2. If Failed, Try EmailJS
                         if (!success) {
                             Log.d("Contact", "FormSubmit failed. Attempting EmailJS...")
-                            success = sendViaEmailJS(name, contact, message, useTor)
+                            success = sendViaEmailJS(name, contact, message, useProxy)
                         }
 
                         isSending = false
@@ -150,7 +150,7 @@ to the Stellarium Foundation.""",
                             message = ""
                         } else {
                             // 3. Fallback to Android Intent
-                            val errorMsg = if (useTor) "Tor failed. Is Orbot running?" else "Network failed."
+                            val errorMsg = if (useProxy) "Proxy connection failed." else "Network failed."
                             Toast.makeText(context, "$errorMsg Opening Email...", Toast.LENGTH_SHORT).show()
                             
                             val intent = Intent(Intent.ACTION_SENDTO).apply {
@@ -186,14 +186,16 @@ to the Stellarium Foundation.""",
 }
 
 /**
- * Gets a Proxy object.
- * If useTor is true, returns a SOCKS proxy for Orbot (localhost:9050).
- * Otherwise returns Proxy.NO_PROXY.
+ * Returns a Proxy object based on user selection.
+ * Note: Free proxies die often. For production, use a paid proxy API or a list.
  */
-fun getProxy(useTor: Boolean): Proxy {
-    return if (useTor) {
-        // Standard Orbot SOCKS proxy port is 9050
-        Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", 9050))
+fun getProxy(useProxy: Boolean): Proxy {
+    return if (useProxy) {
+        // --- CONFIGURE YOUR PUBLIC PROXY HERE ---
+        // Find a working HTTPS/HTTP proxy from: https://spys.one/en/
+        val proxyHost = "185.26.168.17" // Example IP (Indonesia)
+        val proxyPort = 4153 // Example Port
+        Proxy(Proxy.Type.HTTP, InetSocketAddress(proxyHost, proxyPort))
     } else {
         Proxy.NO_PROXY
     }
@@ -201,36 +203,34 @@ fun getProxy(useTor: Boolean): Proxy {
 
 /**
  * METHOD 1: FormSubmit.co
- * Robust, no API keys needed on client side.
  */
-suspend fun sendViaFormSubmit(name: String, contact: String, message: String, useTor: Boolean): Boolean {
+suspend fun sendViaFormSubmit(name: String, contact: String, message: String, useProxy: Boolean): Boolean {
     return withContext(Dispatchers.IO) {
         var conn: HttpURLConnection? = null
         try {
             val targetEmail = "stellar.foundation.us@gmail.com"
             val url = URL("https://formsubmit.co/ajax/$targetEmail")
             
-            // Open connection using the appropriate proxy
-            val proxy = getProxy(useTor)
+            // Open connection using the proxy (or NO_PROXY)
+            val proxy = getProxy(useProxy)
             conn = url.openConnection(proxy) as HttpURLConnection
             
             conn.requestMethod = "POST"
             conn.doOutput = true
             conn.doInput = true
-            conn.readTimeout = 20000 // Longer timeout for Tor
-            conn.connectTimeout = 20000
+            conn.readTimeout = 15000 
+            conn.connectTimeout = 15000
             
             conn.setRequestProperty("Content-Type", "application/json")
             conn.setRequestProperty("Accept", "application/json")
 
             val jsonPayload = JSONObject()
             jsonPayload.put("name", if (name.isBlank()) "Anonymous" else name)
-            // FormSubmit requires a valid-looking email field to prevent spam
             jsonPayload.put("email", if (contact.contains("@")) contact else "no-reply@stellarium.app") 
             jsonPayload.put("contact_details", contact)
             jsonPayload.put("message", message)
             jsonPayload.put("_subject", "Stellarium App Message")
-            jsonPayload.put("_captcha", "false") // Disable captcha
+            jsonPayload.put("_captcha", "false")
             jsonPayload.put("_template", "table")
 
             val writer = OutputStreamWriter(conn.outputStream)
@@ -241,7 +241,6 @@ suspend fun sendViaFormSubmit(name: String, contact: String, message: String, us
             val responseCode = conn.responseCode
             Log.d("FormSubmit", "Code: $responseCode")
             
-            // Read response to ensure connection closes cleanly
             try {
                 BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
             } catch (e: Exception) { }
@@ -259,31 +258,27 @@ suspend fun sendViaFormSubmit(name: String, contact: String, message: String, us
 
 /**
  * METHOD 2: EmailJS
- * Uses specific keys provided.
  */
-suspend fun sendViaEmailJS(name: String, contact: String, message: String, useTor: Boolean): Boolean {
+suspend fun sendViaEmailJS(name: String, contact: String, message: String, useProxy: Boolean): Boolean {
     return withContext(Dispatchers.IO) {
         var conn: HttpURLConnection? = null
         try {
             val url = URL("https://api.emailjs.com/api/v1.0/email/send")
             
-            // Open connection using the appropriate proxy
-            val proxy = getProxy(useTor)
+            val proxy = getProxy(useProxy)
             conn = url.openConnection(proxy) as HttpURLConnection
             
             conn.requestMethod = "POST"
             conn.doOutput = true
             conn.doInput = true
-            conn.readTimeout = 20000
-            conn.connectTimeout = 20000
+            conn.readTimeout = 15000
+            conn.connectTimeout = 15000
             conn.setRequestProperty("Content-Type", "application/json")
             
-            // Keys provided by user
             val serviceId = "service_qye8v7s"
             val templateId = "template_m3bkagb"
             val publicKey = "-tOozrRD3X82Oy7Uk" 
 
-            // Params matching the screenshot
             val templateParams = JSONObject()
             templateParams.put("title", "App Contact Form")
             templateParams.put("name", if (name.isNotBlank()) name else "Anonymous")
