@@ -18,6 +18,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // 1. LIMIT ARCHITECTURES
+        // Keep x86 here ONLY if you need to run the Universal APK on an Emulator.
+        // For a pure production build for phones, removing x86 saves space in the Universal APK.
         ndk {
             abiFilters.add("armeabi-v7a")
             abiFilters.add("arm64-v8a")
@@ -25,15 +27,18 @@ android {
             abiFilters.add("x86_64")
         }
         
+        // 2. RESOURCE OPTIMIZATION (NEW!)
+        // This removes unused languages (keeps only English) and unused screen densities.
+        // Without this, you carry resources for 100+ languages you don't use.
+        resConfigs("en", "xxhdpi")
+
         vectorDrawables {
             useSupportLibrary = true
         }
     }
 
-    // 2. SIGNING CONFIGURATION (Reads from GitHub Secrets)
     signingConfigs {
         create("release") {
-            // We use System.getenv to read from the CI/CD environment
             val keystorePath = System.getenv("KEYSTORE_PATH")
             if (keystorePath != null) {
                 storeFile = file(keystorePath)
@@ -44,7 +49,6 @@ android {
         }
     }
 
-    // 3. SPLITS
     splits {
         abi {
             isEnable = true
@@ -56,6 +60,7 @@ android {
 
     buildTypes {
         debug {
+            // High compression in debug makes builds slower but installs faster
             isMinifyEnabled = true 
             isShrinkResources = true
             isDebuggable = true
@@ -66,13 +71,12 @@ android {
         }
 
         release {
-            // MAXIMUM PERFORMANCE CONFIGURATION
+            // MAXIMUM PERFORMANCE
             isMinifyEnabled = true
             isShrinkResources = true
             isZipAlignEnabled = true
             isDebuggable = false
             
-            // Apply the signing config if keys exist
             if (System.getenv("KEYSTORE_PATH") != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -111,5 +115,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.activity:activity-compose:1.8.2")
     implementation("androidx.navigation:navigation-compose:2.7.7")
+    
+    // R8 will strip the unused icons perfectly
     implementation("androidx.compose.material:material-icons-extended") 
 }

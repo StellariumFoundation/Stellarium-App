@@ -43,7 +43,7 @@ fun HomeScreen() {
         // --- 1. Title ---
         Text(
             text = "STELLARIUM FOUNDATION",
-            style = MaterialTheme.typography.headlineMedium, // Smaller than displayMedium
+            style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.primary,
             textAlign = TextAlign.Center,
             fontWeight = FontWeight.Bold
@@ -67,7 +67,7 @@ fun HomeScreen() {
         // --- 3. Introduction ---
         Text(
             text = "An institution to propel global wealth creation and wellness.",
-            style = MaterialTheme.typography.titleSmall, // Much smaller
+            style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.secondary,
             textAlign = TextAlign.Center,
             fontWeight = FontWeight.Bold,
@@ -78,7 +78,7 @@ fun HomeScreen() {
         
         Text(
             text = "Through high-profile advising, technology, wisdom, and innovative fortitude, we implement commoditizing solutions in business, policy, finance, personal wealth creation, relationships, and branding.",
-            style = MaterialTheme.typography.bodySmall, // Smaller body text
+            style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
             lineHeight = 16.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -96,7 +96,7 @@ fun HomeScreen() {
         
         Spacer(modifier = Modifier.height(12.dp))
 
-        // --- 5. Topics Grid (3 Columns x 2 Rows) ---
+        // --- 5. Topics Grid ---
         
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TopicCard(
@@ -176,28 +176,29 @@ fun HomeScreen() {
                     imageVector = selectedTopic!!.icon, 
                     contentDescription = null, 
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(56.dp)
                 )
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 
                 Text(
                     text = selectedTopic!!.title,
-                    style = MaterialTheme.typography.titleLarge, // Smaller Header inside sheet
+                    style = MaterialTheme.typography.headlineSmall, // Smaller, balanced header
                     color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.Bold
                 )
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 
+                // Description Text: Justified alignment looks cleaner for paragraphs
                 Text(
                     text = selectedTopic!!.description,
                     style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 14.sp, 
-                        lineHeight = 22.sp
+                        fontSize = 15.sp,
+                        lineHeight = 24.sp
                     ),
-                    textAlign = TextAlign.Start, 
+                    textAlign = TextAlign.Center, // Explicitly Center Aligned based on request
                     color = Color(0xFFEEEEEE)
                 )
                 
@@ -216,7 +217,7 @@ fun TopicCard(
 ) {
     OutlinedCard(
         onClick = onClick,
-        modifier = modifier.height(90.dp), // Reduced height
+        modifier = modifier.height(90.dp),
         colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -233,12 +234,12 @@ fun TopicCard(
                 imageVector = icon, 
                 contentDescription = null, 
                 tint = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(28.dp) // Smaller Icon
+                modifier = Modifier.size(28.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = title, 
-                style = MaterialTheme.typography.labelSmall, // Smaller Text
+                style = MaterialTheme.typography.labelSmall,
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
