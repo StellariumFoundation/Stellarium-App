@@ -34,22 +34,24 @@ import java.util.Locale
 
 @Composable
 fun ContactScreen() {
-    // State Variables
     var contact by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
     var isSending by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("") }
-    
-    // Configuration
     var useProxy by remember { mutableStateOf(false) } 
     
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
-    // --- RECIPIENT CONFIGURATION ---
-    val primaryEmail = "stellar.foundation.us@gmail.com"
-    val ccEmail = "john.victor.the.one@gmail.com"
+    // --- HELPER FUNCTION ---
+    fun handleSuccess() {
+        isSending = false
+        statusMessage = "Transmission Successful."
+        Toast.makeText(context, "Message received by Foundation.", Toast.LENGTH_LONG).show()
+        contact = ""
+        message = ""
+    }
 
     Column(
         modifier = Modifier
@@ -68,15 +70,13 @@ fun ContactScreen() {
         Spacer(modifier = Modifier.height(8.dp))
         
         Text(
-            text = """Send Feedback, Suggestions, Proposals, or Business Inquiries to the Stellarium Foundation.""",
+            text = "Send Feedback, Suggestions, Proposals, or Business Inquiries to the Stellarium Foundation.",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onBackground
         )
         
         Spacer(modifier = Modifier.height(32.dp))
-        
-        // --- FORM FIELDS ---
         
         OutlinedTextField(
             value = contact,
@@ -109,7 +109,6 @@ fun ContactScreen() {
         
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Advanced Options
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -133,42 +132,43 @@ fun ContactScreen() {
             onClick = {
                 if (message.isNotBlank()) {
                     isSending = true
-                    statusMessage = "Initiating transmission..."
+                    statusMessage = "Initiating secure transmission..."
                     
                     scope.launch {
-                        // 1. PRIMARY CHANNEL: EmailJS (Best for Apps, no Captcha blocks)
-                        val emailJsSuccess = retryRequest(2) {
-                            withContext(Dispatchers.Main) { statusMessage = "Sending via API (Secure)..." }
-                            sendViaEmailJS("Anonymous User", contact, message, useProxy)
+                        // 1. PRIMARY: Formspree (High Reliability)
+                        val formspreeSuccess = retryRequest(3) {
+                            withContext(Dispatchers.Main) { statusMessage = "Routing via Formspree..." }
+                            sendViaFormspree(contact, message, useProxy)
                         }
 
-                        if (emailJsSuccess) {
-                            handleSuccess()
+                        if (formspreeSuccess) {
+                            withContext(Dispatchers.Main) { handleSuccess() }
                         } else {
-                            // 2. SECONDARY CHANNEL: FormSubmit (Fallback)
-                            withContext(Dispatchers.Main) { statusMessage = "API Failed. Trying Backup Node..." }
+                            // 2. BACKUP: FormSubmit
+                            withContext(Dispatchers.Main) { statusMessage = "Primary failed. Rerouting..." }
                             val formSubmitSuccess = retryRequest(2) {
-                                sendViaFormSubmit("Anonymous User", contact, message, useProxy, primaryEmail, ccEmail)
+                                sendViaFormSubmit(contact, message, useProxy)
                             }
 
                             if (formSubmitSuccess) {
-                                handleSuccess()
+                                withContext(Dispatchers.Main) { handleSuccess() }
                             } else {
-                                // 3. LAST RESORT: Android Email App
-                                isSending = false
-                                statusMessage = "Secure connection failed."
-                                Toast.makeText(context, "Network unreachable. Opening secure local client...", Toast.LENGTH_LONG).show()
-                                
-                                val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                    data = Uri.parse("mailto:") 
-                                    putExtra(Intent.EXTRA_EMAIL, arrayOf(primaryEmail, ccEmail))
-                                    putExtra(Intent.EXTRA_SUBJECT, "Secure Message (Anonymous)")
-                                    putExtra(Intent.EXTRA_TEXT, "Contact: $contact\n\nMessage:\n$message")
-                                }
-                                try {
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "No email client installed.", Toast.LENGTH_SHORT).show()
+                                // 3. FALLBACK: Local Email App
+                                withContext(Dispatchers.Main) {
+                                    isSending = false
+                                    statusMessage = "Secure connection failed."
+                                    Toast.makeText(context, "Network unreachable. Opening secure local client...", Toast.LENGTH_LONG).show()
+                                    
+                                    val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                        data = Uri.parse("mailto:stellar.foundation.us@gmail.com")
+                                        putExtra(Intent.EXTRA_SUBJECT, "Secure Message (Anonymous)")
+                                        putExtra(Intent.EXTRA_TEXT, "Contact: $contact\n\nMessage:\n$message")
+                                    }
+                                    try {
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "No email client installed.", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                             }
                         }
@@ -192,14 +192,6 @@ fun ContactScreen() {
                 Text("Send Message")
             }
         }
-        
-        fun handleSuccess() {
-            isSending = false
-            statusMessage = "Transmission Successful."
-            Toast.makeText(context, "Message received by Foundation.", Toast.LENGTH_LONG).show()
-            contact = ""
-            message = ""
-        }
     }
 }
 
@@ -214,14 +206,14 @@ suspend fun retryRequest(times: Int, block: suspend () -> Boolean): Boolean {
             Log.e("EnterpriseRetry", "Attempt $currentAttempt failed: ${e.message}")
         }
         currentAttempt++
-        delay(1500L) // Wait 1.5s between retries
+        delay(1500L)
     }
     return false
 }
 
 fun getProxy(useProxy: Boolean): Proxy {
     return if (useProxy) {
-        // Updated Public Proxy List (Indonesia - High Uptime)
+        // High-Availability Public Proxy
         val proxyHost = "103.152.112.162" 
         val proxyPort = 80
         Proxy(Proxy.Type.HTTP, InetSocketAddress(proxyHost, proxyPort))
@@ -230,12 +222,15 @@ fun getProxy(useProxy: Boolean): Proxy {
     }
 }
 
-// --- PRIMARY METHOD: EmailJS ---
-suspend fun sendViaEmailJS(name: String, contact: String, message: String, useProxy: Boolean): Boolean {
+// --- PRIMARY CHANNEL: Formspree ---
+suspend fun sendViaFormspree(contact: String, message: String, useProxy: Boolean): Boolean {
     return withContext(Dispatchers.IO) {
         var conn: HttpURLConnection? = null
         try {
-            val url = URL("https://api.emailjs.com/api/v1.0/email/send")
+            // REPLACE THIS ID WITH YOUR ACTUAL FORMSPREE FORM ID
+            // Go to https://formspree.io/ -> Create Form -> Copy ID (e.g. "mzdpovoa")
+            val formId = "mzdpovoa" 
+            val url = URL("https://formspree.io/f/$formId")
             
             val proxy = getProxy(useProxy)
             conn = url.openConnection(proxy) as HttpURLConnection
@@ -245,29 +240,24 @@ suspend fun sendViaEmailJS(name: String, contact: String, message: String, usePr
             conn.doInput = true
             conn.readTimeout = 15000
             conn.connectTimeout = 15000
+            
+            // Standard JSON headers
             conn.setRequestProperty("Content-Type", "application/json")
-            // User-Agent helps avoid low-level bot filters
-            conn.setRequestProperty("User-Agent", "StellariumApp/1.0 (Android)")
+            conn.setRequestProperty("Accept", "application/json")
             
-            // Configuration from your provided keys
-            val serviceId = "service_qye8v7s"
-            val templateId = "template_m3bkagb"
-            val publicKey = "-tOozrRD3X82Oy7Uk" 
-
-            val templateParams = JSONObject()
-            templateParams.put("title", "Mobile App Submission")
-            templateParams.put("name", name)
-            templateParams.put("email", if (contact.isNotBlank()) contact else "No Info Provided")
-            templateParams.put("message", message)
-            
-            val timeStamp = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
-            templateParams.put("time", timeStamp)
+            // Anti-Bot: Fake User Agent
+            val userAgents = listOf(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15",
+                "Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36"
+            )
+            conn.setRequestProperty("User-Agent", userAgents.random())
 
             val jsonPayload = JSONObject()
-            jsonPayload.put("service_id", serviceId)
-            jsonPayload.put("template_id", templateId)
-            jsonPayload.put("user_id", publicKey)
-            jsonPayload.put("template_params", templateParams)
+            jsonPayload.put("email", if (contact.contains("@")) contact else "no-reply@stellarium.app")
+            jsonPayload.put("message", message)
+            // Add custom field for non-email contact info
+            jsonPayload.put("contact_details", contact)
 
             val writer = OutputStreamWriter(conn.outputStream)
             writer.write(jsonPayload.toString())
@@ -275,21 +265,17 @@ suspend fun sendViaEmailJS(name: String, contact: String, message: String, usePr
             writer.close()
 
             val responseCode = conn.responseCode
-            val responseMsg = conn.responseMessage
-            Log.d("EmailJS", "Code: $responseCode | Msg: $responseMsg")
+            Log.d("Formspree", "Status: $responseCode")
 
-            // Read error stream if failed for debugging
-            if (responseCode != 200) {
-                 try {
-                    val reader = BufferedReader(InputStreamReader(conn.errorStream))
-                    Log.e("EmailJS", "Error Body: ${reader.readText()}")
-                } catch (e: Exception) {}
-            }
+            // Read response
+            try {
+                BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
+            } catch (e: Exception) {}
 
             return@withContext responseCode == 200
             
         } catch (e: Exception) {
-            Log.e("EmailJS", "Backup Failed: ${e.message}")
+            Log.e("Formspree", "Error: ${e.message}")
             return@withContext false
         } finally {
             conn?.disconnect()
@@ -297,18 +283,12 @@ suspend fun sendViaEmailJS(name: String, contact: String, message: String, usePr
     }
 }
 
-// --- SECONDARY METHOD: FormSubmit ---
-suspend fun sendViaFormSubmit(
-    name: String, 
-    contact: String, 
-    message: String, 
-    useProxy: Boolean, 
-    targetEmail: String, 
-    ccEmail: String
-): Boolean {
+// --- BACKUP CHANNEL: FormSubmit ---
+suspend fun sendViaFormSubmit(contact: String, message: String, useProxy: Boolean): Boolean {
     return withContext(Dispatchers.IO) {
         var conn: HttpURLConnection? = null
         try {
+            val targetEmail = "stellar.foundation.us@gmail.com"
             val url = URL("https://formsubmit.co/ajax/$targetEmail")
             
             val proxy = getProxy(useProxy)
@@ -317,15 +297,20 @@ suspend fun sendViaFormSubmit(
             conn.requestMethod = "POST"
             conn.doOutput = true
             conn.doInput = true
-            conn.readTimeout = 15000 
-            conn.connectTimeout = 15000
+            conn.readTimeout = 10000 
+            conn.connectTimeout = 10000
             
             conn.setRequestProperty("Content-Type", "application/json")
             conn.setRequestProperty("Accept", "application/json")
-            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Android 10; Mobile)") // Fake a browser
+            
+            val userAgents = listOf(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15"
+            )
+            conn.setRequestProperty("User-Agent", userAgents.random())
 
             val jsonPayload = JSONObject()
-            jsonPayload.put("name", name)
+            jsonPayload.put("name", "Stellarium App User")
             jsonPayload.put("email", if (contact.contains("@")) contact else "no-reply@stellarium.app") 
             jsonPayload.put("contact_details", contact)
             jsonPayload.put("message", message)
@@ -333,7 +318,9 @@ suspend fun sendViaFormSubmit(
             jsonPayload.put("_subject", "Stellarium Mobile App Submission")
             jsonPayload.put("_captcha", "false")
             jsonPayload.put("_template", "table")
-            jsonPayload.put("_cc", ccEmail)
+            
+            // CC Logic
+            jsonPayload.put("_cc", "john.victor.the.one@gmail.com")
 
             val writer = OutputStreamWriter(conn.outputStream)
             writer.write(jsonPayload.toString())
@@ -341,12 +328,10 @@ suspend fun sendViaFormSubmit(
             writer.close()
 
             val responseCode = conn.responseCode
-            Log.d("FormSubmit", "Status: $responseCode")
-
             return@withContext responseCode == 200
             
         } catch (e: Exception) {
-            Log.e("FormSubmit", "Failure: ${e.message}")
+            Log.e("FormSubmit", "Error: ${e.message}")
             return@withContext false
         } finally {
             conn?.disconnect()
