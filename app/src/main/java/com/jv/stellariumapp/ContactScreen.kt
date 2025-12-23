@@ -25,7 +25,7 @@ import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.InetSocketAddress
-import java.net.Proxy // Ensure this is java.net.Proxy
+import java.net.Proxy
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -33,11 +33,11 @@ import java.util.Locale
 
 @Composable
 fun ContactScreen() {
-    var name by remember { mutableStateOf("") }
+    // Removed Name state variable
     var contact by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
     var isSending by remember { mutableStateOf(false) }
-    var useProxy by remember { mutableStateOf(false) } // Toggle for Proxy
+    var useProxy by remember { mutableStateOf(false) } 
     
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -69,20 +69,7 @@ to the Stellarium Foundation.""",
         
         Spacer(modifier = Modifier.height(32.dp))
         
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text("Name or Institution (Optional)") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface
-            )
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
+        // --- NAME FIELD REMOVED ---
         
         OutlinedTextField(
             value = contact,
@@ -121,7 +108,7 @@ to the Stellarium Foundation.""",
             modifier = Modifier.fillMaxWidth()
         ) {
             Checkbox(checked = useProxy, onCheckedChange = { useProxy = it })
-            Text(text = "Hide my IP (Use Public Proxy)", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Hide IP (Use Public Proxy)", style = MaterialTheme.typography.bodyMedium)
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -131,32 +118,32 @@ to the Stellarium Foundation.""",
                 if (message.isNotBlank()) {
                     isSending = true
                     scope.launch {
-                        // 1. Try FormSubmit
+                        // 1. Try FormSubmit (Primary)
                         Log.d("Contact", "Attempting FormSubmit. Proxy: $useProxy")
-                        var success = sendViaFormSubmit(name, contact, message, useProxy)
+                        // Hardcode "Anonymous" as the name since field is removed
+                        var success = sendViaFormSubmit("Anonymous User", contact, message, useProxy)
                         
-                        // 2. If Failed, Try EmailJS
+                        // 2. If Failed, Try EmailJS (Backup)
                         if (!success) {
                             Log.d("Contact", "FormSubmit failed. Attempting EmailJS...")
-                            success = sendViaEmailJS(name, contact, message, useProxy)
+                            success = sendViaEmailJS("Anonymous User", contact, message, useProxy)
                         }
 
                         isSending = false
                         
                         if (success) {
                             Toast.makeText(context, "Message sent successfully!", Toast.LENGTH_LONG).show()
-                            name = ""
                             contact = ""
                             message = ""
                         } else {
-                            // 3. Fallback to Android Intent
+                            // 3. Fallback to Android Intent (Last Resort)
                             val errorMsg = if (useProxy) "Proxy connection failed." else "Network failed."
                             Toast.makeText(context, "$errorMsg Opening Email...", Toast.LENGTH_SHORT).show()
                             
                             val intent = Intent(Intent.ACTION_SENDTO).apply {
                                 data = Uri.parse("mailto:stellar.foundation.us@gmail.com")
-                                putExtra(Intent.EXTRA_SUBJECT, "Message from App: $name")
-                                putExtra(Intent.EXTRA_TEXT, "Contact: $contact\n\nMessage:\n$message")
+                                putExtra(Intent.EXTRA_SUBJECT, "Message from App (Anonymous)")
+                                putExtra(Intent.EXTRA_TEXT, "Contact Info: $contact\n\nMessage:\n$message")
                             }
                             try {
                                 context.startActivity(intent)
@@ -187,14 +174,13 @@ to the Stellarium Foundation.""",
 
 /**
  * Returns a Proxy object based on user selection.
- * Note: Free proxies die often. For production, use a paid proxy API or a list.
  */
 fun getProxy(useProxy: Boolean): Proxy {
     return if (useProxy) {
         // --- CONFIGURE YOUR PUBLIC PROXY HERE ---
         // Find a working HTTPS/HTTP proxy from: https://spys.one/en/
-        val proxyHost = "185.26.168.17" // Example IP (Indonesia)
-        val proxyPort = 4153 // Example Port
+        val proxyHost = "202.162.212.164" 
+        val proxyPort = 80
         Proxy(Proxy.Type.HTTP, InetSocketAddress(proxyHost, proxyPort))
     } else {
         Proxy.NO_PROXY
@@ -211,7 +197,6 @@ suspend fun sendViaFormSubmit(name: String, contact: String, message: String, us
             val targetEmail = "stellar.foundation.us@gmail.com"
             val url = URL("https://formsubmit.co/ajax/$targetEmail")
             
-            // Open connection using the proxy (or NO_PROXY)
             val proxy = getProxy(useProxy)
             conn = url.openConnection(proxy) as HttpURLConnection
             
@@ -225,11 +210,12 @@ suspend fun sendViaFormSubmit(name: String, contact: String, message: String, us
             conn.setRequestProperty("Accept", "application/json")
 
             val jsonPayload = JSONObject()
-            jsonPayload.put("name", if (name.isBlank()) "Anonymous" else name)
+            // Send hardcoded name or whatever is passed
+            jsonPayload.put("name", name) 
             jsonPayload.put("email", if (contact.contains("@")) contact else "no-reply@stellarium.app") 
             jsonPayload.put("contact_details", contact)
             jsonPayload.put("message", message)
-            jsonPayload.put("_subject", "Stellarium App Message")
+            jsonPayload.put("_subject", "Stellarium App Submission")
             jsonPayload.put("_captcha", "false")
             jsonPayload.put("_template", "table")
 
@@ -281,7 +267,7 @@ suspend fun sendViaEmailJS(name: String, contact: String, message: String, usePr
 
             val templateParams = JSONObject()
             templateParams.put("title", "App Contact Form")
-            templateParams.put("name", if (name.isNotBlank()) name else "Anonymous")
+            templateParams.put("name", name) // Hardcoded "Anonymous User" passed from UI
             templateParams.put("email", if (contact.isNotBlank()) contact else "No info")
             templateParams.put("message", message)
             
@@ -312,4 +298,3 @@ suspend fun sendViaEmailJS(name: String, contact: String, message: String, usePr
         }
     }
 }
-
