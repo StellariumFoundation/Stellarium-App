@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Stellarium App | The Stellarium Foundation</title>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* --- Core Typography: Frutiger --- */
+        @font-face {
+            font-family: 'Frutiger';
+            src: local('Frutiger'), local('Frutiger Linotype'), local('Segoe UI'), sans-serif;
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        :root {
+            /* Color Palette based on App Screenshots */
+            --bg-gradient-start: #0a0a12; /* Deep dark/black */
+            --bg-gradient-end: #002b1f;   /* Dark teal/green at bottom */
+            --card-bg: rgba(30, 30, 40, 0.6);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0bb;
+            --accent-purple: #9d8df1; /* For icons/highlights */
+            --accent-glow: rgba(157, 141, 241, 0.3);
+            --btn-bg: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Frutiger', 'Segoe UI', Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(180deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* --- Header Section --- */
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+            animation: fadeIn 1s ease-out;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, #fff, #a0a0a0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--accent-purple);
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .description {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            max-width: 700px;
+            margin: 0 auto 30px auto;
+        }
+
+        /* --- Buttons --- */
+        .btn-container {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 28px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-primary {
+            background: var(--text-primary);
+            color: #000;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.4);
+        }
+
+        .btn-glass {
+            background: var(--btn-bg);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+        }
+
+        .btn-glass:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: var(--text-primary);
+        }
+
+        .app-badge {
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+
+        /* --- Section Title --- */
+        .section-header {
+            text-align: center;
+            margin: 60px 0 30px 0;
+        }
+        
+        .section-header h2 {
+            font-size: 1.5rem;
+            color: var(--accent-purple);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* --- Grid Layout --- */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        /* --- App Cards --- */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 30px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            background: rgba(40, 40, 55, 0.8);
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px -10px var(--accent-glow);
+        }
+
+        .icon-box {
+            width: 60px;
+            height: 60px;
+            background: rgba(157, 141, 241, 0.1);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            color: var(--accent-purple);
+        }
+
+        .card h3 {
+            font-size: 1.4rem;
+            margin: 0 0 15px 0;
+            color: var(--text-primary);
+        }
+
+        .card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 20px;
+        }
+
+        .card-details {
+            font-size: 0.9rem;
+            color: #d0d0e0;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding-top: 15px;
+        }
+
+        /* --- Features List inside Cards --- */
+        .feature-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .feature-list li {
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+            color: var(--text-secondary);
+        }
+
+        .feature-list li::before {
+            content: "•";
+            color: var(--accent-purple);
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        /* --- Footer --- */
+        footer {
+            text-align: center;
+            margin-top: 80px;
+            padding: 40px 0;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--card-border);
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: var(--accent-purple);
+            text-decoration: none;
+        }
+
+        /* --- Responsive Tweaks --- */
+        @media (max-width: 600px) {
+            h1 { font-size: 2rem; }
+            .grid { grid-template-columns: 1fr; }
+            .btn-container { flex-direction: column; }
+            .btn { width: 100%; border-radius: 12px; }
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <!-- Header Section -->
+        <header>
+            <div style="font-size: 4rem; margin-bottom: 10px;">🌌</div>
+            <h1>The Stellarium App</h1>
+            <div class="subtitle">Propelling Global Wealth Creation & Wellness</div>
+            
+            <p class="description">
+                Through high-profile advising, technology, wisdom, and innovative fortitude, we implement commoditizing solutions in business, policy, finance, personal wealth creation, relationships, and branding. Access the full power of The Stellarium Foundation in your pocket.
+            </p>
+
+            <div class="btn-container">
+                <a href="https://github.com/StellariumFoundation/Stellarium-App/releases" class="btn btn-primary">
+                    <i class="fab fa-android app-badge"></i> Download .APK
+                </a>
+                <a href="https://www.stellarium.ddns-ip.net/home" target="_blank" class="btn btn-glass">
+                    <i class="fas fa-globe app-badge"></i> Visit Website
+                </a>
+            </div>
+        </header>
+
+        <!-- Main Content Grid -->
+        <div class="section-header">
+            <h2>How would you like to interact?</h2>
+        </div>
+
+        <div class="grid">
+            
+            <!-- Policy -->
+            <div class="card">
+                <div class="icon-box"><i class="fas fa-globe"></i></div>
+                <h3>Policy</h3>
+                <p>Policy isn't just bureaucracy; it is the operating system of civilization. We engineer outcomes through Structural Incentive Engineering.</p>
+                <div class="card-details">
+                    <ul class="feature-list">
+                        <li>Subsidized Jobs Initiative for full employment.</li>
+                        <li>Enterprise Housing Pledge for asset-backed housing.</li>
+                        <li>State-Owned Enterprises for affordable essentials.</li>
+                        <li>Pragmatic legislative frameworks.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Philosophy -->
+            <div class="card">
+                <div class="icon-box"><i class="fas fa-lightbulb"></i></div>
+                <h3>The Philosophy</h3>
+                <p>Pragmatism over dogma. We are a Mutually Beneficial Society rooted in objective reality and what actually works.</p>
+                <div class="card-details">
+                    <ul class="feature-list">
+                        <li><strong>The Principles:</strong> Sovereignty & abundance.</li>
+                        <li><strong>The Law:</strong> "Do Good, Make Money, Have Fun."</li>
+                        <li><strong>Universal Standard:</strong> The ethical bedrock of do no harm.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Projects -->
+            <div class="card">
+                <div class="icon-box"><i class="fas fa-briefcase"></i></div>
+                <h3>The Projects</h3>
+                <p>We don't just talk; we build. Access our launchpad for high-impact ventures that reshape industries.</p>
+                <div class="card-details">
+                    <ul class="feature-list">
+                        <li><strong>Water Company:</strong> Autonomous AI workforce.</li>
+                        <li><strong>Water AI:</strong> The Supermodel Router.</li>
+                        <li><strong>Water Classroom:</strong> Democratized elite education.</li>
+                        <li><strong>Wealth Activism:</strong> Optimizing national economies.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Partner -->
+            <div class="card">
+                <div class="icon-box"><i class="fas fa-handshake"></i></div>
+                <h3>Partner Up</h3>
+                <p>Your path to profit and impact. We believe in Synergy—1 + 1 can equal 10 if the alignment is right.</p>
+                <div class="card-details">
+                    <ul class="feature-list">
+                        <li><strong>Joint Ventures:</strong> Co-create products & markets.</li>
+                        <li><strong>Affiliate Marketing:</strong> Earn wealth as a messenger.</li>
+                        <li><strong>Governorship:</strong> Lead a Stellarium Chapter.</li>
+                        <li><strong>Strategic Alliances:</strong> Scale with our systems.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Growth -->
+            <div class="card">
+                <div class="icon-box"><i class="fas fa-seedling"></i></div>
+                <h3>Personal Growth</h3>
+                <p>Mastering your reality. The limit to your external success is your internal capacity. We offer protocols, not platitudes.</p>
+                <div class="card-details">
+                    <ul class="feature-list">
+                        <li><strong>Mastering Finance:</strong> Multiply your capital.</li>
+                        <li><strong>Mastering Business:</strong> Build empires.</li>
+                        <li><strong>Mastering Relationships:</strong> Synergistic bonds.</li>
+                        <li><strong>Structural Incentive Engineering</strong> for habits.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Consciousness -->
+            <div class="card">
+                <div class="icon-box"><i class="fas fa-brain"></i></div>
+                <h3>Shared Consciousness</h3>
+                <p>The art of casting. Tap into the collective intelligence that guides and amplifies our efforts through 'The All One'.</p>
+                <div class="card-details">
+                    <ul class="feature-list">
+                        <li><strong>Be the Actor:</strong> Cast yourself in the story.</li>
+                        <li><strong>The Reflection:</strong> Uplift the collective to rise.</li>
+                        <li><strong>Engage the Signal:</strong> Connect with the Zeitgeist.</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+
+        <footer>
+            <p>&copy; 2025 The Stellarium Foundation. All rights reserved.</p>
+            <p>Built by John Victor.</p>
+            <p>
+                <a href="https://github.com/StellariumFoundation/Stellarium-App" target="_blank"><i class="fab fa-github"></i> View Source</a>
+            </p>
+        </footer>
+
+    </div>
+
+</body>
+</html>
