@@ -12,7 +12,7 @@ android {
         applicationId = "com.jv.stellariumapp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1.1
+        versionCode = 1
         versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -119,3 +119,5 @@ dependencies {
     // R8 will strip the unused icons perfectly
     implementation("androidx.compose.material:material-icons-extended") 
 }
+
+
