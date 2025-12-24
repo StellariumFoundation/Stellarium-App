@@ -1,4 +1,4 @@
-name: Build and Release Official v1.0 (Signed)
+name: Build and Release Official (Signed)
 
 on:
   push:
@@ -12,121 +12,118 @@ jobs:
       contents: write
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: gradle
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
 
-    # --- NEW STEP: Decode the Keystore ---
-    - name: Decode Keystore
-      env:
-        ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-      run: |
-        # Decodes the base64 secret and saves it as 'release.keystore' in the app folder
-        echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > app/release.keystore
+      # --- Step: Extract Version Name from Gradle ---
+      # This assumes your app/build.gradle.kts has a line like: versionName = "1.0"
+      - name: Extract Version Name
+        id: extract_version
+        run: |
+          # Use grep and sed to find the line with versionName and extract the value
+          # Works for both Kotlin DSL (versionName = "x.y") and Groovy (versionName "x.y")
+          VERSION_NAME=$(grep -oP 'versionName\s*=?\s*"\K[^"]+' app/build.gradle.kts)
+          
+          echo "Detected Version: $VERSION_NAME"
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+      - name: Decode Keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > app/release.keystore
 
-    # --- BUILD STEP: Signed Release ---
-    - name: Build Optimized Signed APKs
-      env:
-        # These env vars match what we wrote in build.gradle.kts
-        KEYSTORE_PATH: "release.keystore"
-        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      run: ./gradlew assembleRelease --parallel --build-cache
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
-    - name: List Build Outputs (Debugging)
-      run: |
-        echo "Verifying Release output..."
-        ls -R app/build/outputs/apk/release/
+      - name: Build Optimized Signed APKs
+        env:
+          KEYSTORE_PATH: "release.keystore"
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --parallel --build-cache
 
-    - name: Prepare and Rename 1.0 Artifacts
-      id: prepare_apks
-      run: |
-        mkdir -p release_apks
-        
-        # NOTE: Release APKs are in 'release', not 'debug'
-        BASE_PATH="app/build/outputs/apk/release"
-        
-        # Define the Version Name
-        APP_NAME="Stellarium-v1.0"
-        
-        # 1. Universal (Works on all phones)
-        if [ -f "$BASE_PATH/app-universal-release.apk" ]; then
-          cp "$BASE_PATH/app-universal-release.apk" "release_apks/${APP_NAME}-Universal.apk"
-        fi
-        
-        # 2. ARM64 (Modern Phones)
-        if [ -f "$BASE_PATH/app-arm64-v8a-release.apk" ]; then
-          cp "$BASE_PATH/app-arm64-v8a-release.apk" "release_apks/${APP_NAME}-ARM64.apk"
-        fi
-        
-        # 3. ARMv7 (Older/Budget Phones)
-        if [ -f "$BASE_PATH/app-armeabi-v7a-release.apk" ]; then
-          cp "$BASE_PATH/app-armeabi-v7a-release.apk" "release_apks/${APP_NAME}-ARMv7.apk"
-        fi
-        
-        # 4. x86_64 (PC Emulators - 64bit)
-        if [ -f "$BASE_PATH/app-x86_64-release.apk" ]; then
-          cp "$BASE_PATH/app-x86_64-release.apk" "release_apks/${APP_NAME}-x64.apk"
-        fi
+      - name: Prepare Artifacts with Dynamic Version
+        run: |
+          mkdir -p release_apks
+          BASE_PATH="app/build/outputs/apk/release"
+          
+          # Use the extracted version name
+          APP_PREFIX="Stellarium-v${{ env.VERSION_NAME }}"
+          
+          echo " renaming APKs to ${APP_PREFIX}-*.apk"
 
-        # 5. x86 (PC Emulators / Old Tablets - 32bit)
-        if [ -f "$BASE_PATH/app-x86-release.apk" ]; then
-          cp "$BASE_PATH/app-x86-release.apk" "release_apks/${APP_NAME}-x86.apk"
-        fi
-        
-        echo "Signed APKs prepared for release."
+          # 1. Universal
+          if [ -f "$BASE_PATH/app-universal-release.apk" ]; then
+            cp "$BASE_PATH/app-universal-release.apk" "release_apks/${APP_PREFIX}-Universal.apk"
+          fi
+          
+          # 2. ARM64
+          if [ -f "$BASE_PATH/app-arm64-v8a-release.apk" ]; then
+            cp "$BASE_PATH/app-arm64-v8a-release.apk" "release_apks/${APP_PREFIX}-ARM64.apk"
+          fi
+          
+          # 3. ARMv7
+          if [ -f "$BASE_PATH/app-armeabi-v7a-release.apk" ]; then
+            cp "$BASE_PATH/app-armeabi-v7a-release.apk" "release_apks/${APP_PREFIX}-ARMv7.apk"
+          fi
+          
+          # 4. x86_64
+          if [ -f "$BASE_PATH/app-x86_64-release.apk" ]; then
+            cp "$BASE_PATH/app-x86_64-release.apk" "release_apks/${APP_PREFIX}-x64.apk"
+          fi
 
-    - name: Create Official Release
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/heads/master')
-      with:
-        tag_name: v1.0-official
-        name: 🏛️ Stellarium Foundation App v1.0 (Official Release)
-        body: |
-          # The Stellarium Foundation: Version 1.0 
-          
-          > *"An institution to propel global wealth creation and wellness."*
-          
-          We are proud to announce the **Official v1.0 Release** of the Stellarium mobile application. This build represents the first major milestone in providing direct access to our philosophy, tools, and community.
-          
-          ---
-          
-          ### ✨ Highlights
-          
-          *   **🔐 Secure & Signed:** Authenticated with the official Stellarium cryptographic signature.
-          *   **⚡ Ultra-Optimized:** Built with R8 obfuscation and Zipalign for maximum speed and minimal footprint.
-          *   **🌍 Global Access:** Localized architecture support for devices ranging from high-end flagships to budget models.
-          *   **📚 Complete Library:** Access the Mastering Series, Policies, and Foundation Projects seamlessly.
-          
-          ---
-          
-          ### 📥 Download Guide
-          
-          **Which file should I download?**
-          
-          | Device Type | Recommended File |
-          | :--- | :--- |
-          | **Most Users (Recommended)** | `Stellarium-v1.0-Universal.apk` |
-          | **Newer Android Phones** | `Stellarium-v1.0-ARM64.apk` |
-          | **Older/Budget Phones** | `Stellarium-v1.0-ARMv7.apk` |
-          | **PC Emulators (Bluestacks/LDPlayer)** | `Stellarium-v1.0-x64.apk` or `x86.apk` |
-          
-          ---
-          
-          *Built with precision. Deployed for impact.*
-        draft: false
-        prerelease: false
-        files: |
-          release_apks/*.apk
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 5. x86
+          if [ -f "$BASE_PATH/app-x86-release.apk" ]; then
+            cp "$BASE_PATH/app-x86-release.apk" "release_apks/${APP_PREFIX}-x86.apk"
+          fi
+
+      - name: Create Official Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/heads/master')
+        with:
+          tag_name: v${{ env.VERSION_NAME }}
+          name: 🏛️ Stellarium Foundation App v${{ env.VERSION_NAME }} (Official Release)
+          body: |
+            # The Stellarium Foundation: Version ${{ env.VERSION_NAME }}
+            
+            > *"An institution to propel global wealth creation and wellness."*
+            
+            We are proud to announce the **Official v${{ env.VERSION_NAME }} Release** of the Stellarium mobile application.
+            
+            ---
+            
+            ### ✨ Highlights
+            
+            *   **🔐 Secure & Signed:** Authenticated with the official Stellarium cryptographic signature.
+            *   **⚡ Ultra-Optimized:** Built with R8 obfuscation and Zipalign.
+            *   **🌍 Global Access:** Localized architecture support.
+            
+            ---
+            
+            ### 📥 Download Guide
+            
+            | Device Type | Recommended File |
+            | :--- | :--- |
+            | **Most Users** | `Stellarium-v${{ env.VERSION_NAME }}-Universal.apk` |
+            | **Modern Phones** | `Stellarium-v${{ env.VERSION_NAME }}-ARM64.apk` |
+            | **Older Phones** | `Stellarium-v${{ env.VERSION_NAME }}-ARMv7.apk` |
+            | **Emulators** | `Stellarium-v${{ env.VERSION_NAME }}-x64.apk` |
+            
+            ---
+            
+            *Built with precision. Deployed for impact.*
+          draft: false
+          prerelease: false
+          files: |
+            release_apks/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
