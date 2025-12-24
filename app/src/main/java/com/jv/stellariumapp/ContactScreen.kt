@@ -35,7 +35,7 @@ fun ContactScreen() {
     var message by remember { mutableStateOf("") }
     var isSending by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("") }
-    var useProxy by remember { mutableStateOf(false) }
+    var useProxy by remember { mutableStateOf(false) } // Default false -> Direct Send
     
     // Dialog State
     var showOrbotDialog by remember { mutableStateOf(false) }
@@ -43,6 +43,29 @@ fun ContactScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+
+    // --- HELPER: START DIRECT SEND (NO PROXY) ---
+    fun startDirectSequence() {
+        isSending = true
+        statusMessage = "Transmitting (Standard Channel)..."
+        scope.launch(Dispatchers.IO) {
+            // Using Proxy.NO_PROXY ensures a direct connection
+            val success = sendSecureRequest(contact, message, Proxy.NO_PROXY, "formspree")
+            
+            withContext(Dispatchers.Main) {
+                isSending = false
+                if (success) {
+                    statusMessage = "Message Sent Successfully."
+                    Toast.makeText(context, "Message Sent", Toast.LENGTH_SHORT).show()
+                    contact = ""
+                    message = ""
+                } else {
+                    statusMessage = "Transmission Failed. Check Internet."
+                    Toast.makeText(context, "Failed to send message.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     // --- HELPER: START PUBLIC PROXY SEQUENCE ---
     // This is called if Orbot is missing and user clicks "Continue Anyway"
@@ -174,36 +197,21 @@ fun ContactScreen() {
             onClick = {
                 if (message.isNotBlank()) {
                     if (useProxy) {
-                        // 1. Check for Orbot First
+                        // --- PROXY PATH (Tor or Public) ---
                         scope.launch(Dispatchers.IO) {
                             val orbotReady = isOrbotRunning()
                             withContext(Dispatchers.Main) {
                                 if (orbotReady) {
                                     startOrbotSequence()
                                 } else {
-                                    // Trigger Dialog
+                                    // Trigger Dialog if Orbot is missing
                                     showOrbotDialog = true
                                 }
                             }
                         }
                     } else {
-                        // Direct Send (No Proxy)
-                        statusMessage = "Sending via Standard Network..."
-                        isSending = true
-                        scope.launch {
-                             val success = sendSecureRequest(contact, message, Proxy.NO_PROXY, "formspree")
-                             withContext(Dispatchers.Main) {
-                                 isSending = false
-                                 if (success) {
-                                     statusMessage = "Sent."
-                                     Toast.makeText(context, "Message Sent", Toast.LENGTH_SHORT).show()
-                                     contact = ""
-                                     message = ""
-                                 } else {
-                                     statusMessage = "Failed."
-                                 }
-                             }
-                        }
+                        // --- DIRECT PATH (No Proxy) ---
+                        startDirectSequence()
                     }
                 } else {
                     Toast.makeText(context, "Message content is required.", Toast.LENGTH_SHORT).show()
@@ -245,6 +253,7 @@ fun ContactScreen() {
                 TextButton(
                     onClick = {
                         showOrbotDialog = false
+                        // User chose to continue without Orbot -> Use Public Rotating Proxies
                         startPublicProxySequence()
                     }
                 ) {
@@ -324,6 +333,10 @@ suspend fun sendWithPublicProxies(
 }
 
 // --- 4. UNIFIED SECURE REQUEST (HARDENED) ---
+/**
+ * Unified request handler. 
+ * Pass Proxy.NO_PROXY for direct connection.
+ */
 fun sendSecureRequest(contact: String, message: String, proxy: Proxy, service: String): Boolean {
     var conn: HttpURLConnection? = null
     try {
@@ -334,14 +347,24 @@ fun sendSecureRequest(contact: String, message: String, proxy: Proxy, service: S
 
         val url = URL(targetUrl)
         
+        // This is where the magic happens. 
+        // If proxy is Proxy.NO_PROXY, it sends directly.
+        // If proxy is an HTTP/SOCKS object, it tunnels.
         conn = url.openConnection(proxy) as HttpURLConnection
         conn.requestMethod = "POST"
         conn.doOutput = true
         conn.doInput = true
         
-        // FAIL FAST: 3 seconds max.
-        conn.readTimeout = 5000 
-        conn.connectTimeout = 3000 
+        // TIMEOUTS: 
+        // If using a proxy, we want to fail fast (3s to connect).
+        // If NO_PROXY (Direct), standard mobile networks might need a bit more time (e.g. 10s).
+        if (proxy == Proxy.NO_PROXY) {
+            conn.connectTimeout = 10000 
+            conn.readTimeout = 10000
+        } else {
+            conn.connectTimeout = 3000
+            conn.readTimeout = 5000 
+        }
         
         // --- ANTI-FINGERPRINTING HEADERS ---
         conn.setRequestProperty("Content-Type", "application/json")
@@ -386,6 +409,7 @@ fun sendSecureRequest(contact: String, message: String, proxy: Proxy, service: S
         return responseCode in 200..299
         
     } catch (e: Exception) {
+        Log.e("Network", "Send failed: ${e.message}")
         return false
     } finally {
         conn?.disconnect()
