@@ -37,31 +37,23 @@ fun ContactScreen() {
     var statusMessage by remember { mutableStateOf("") }
     var useProxy by remember { mutableStateOf(false) } // Default false -> Direct Send
     
-    // Dialog State
-    var showOrbotDialog by remember { mutableStateOf(false) }
+    // Dialog States
+    var showPrivacyDialog by remember { mutableStateOf(false) } // Privacy education dialog
+    var showOrbotMissingDialog by remember { mutableStateOf(false) } // Orbot missing dialog
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
-    
-    // --- DIALOG TRIGGER ---
-    fun onSendMessage() {
-        if (message.isBlank()) {
-               Toast.makeText(context, "Message content is required.", Toast.LENGTH_SHORT).show()
-               return
-        }
-
-        // Show educational/security dialog BEFORE attempting to send
-        showOrbotDialog = true
-    }
-
 
     // --- HELPER: START DIRECT SEND (NO PROXY) ---
     fun startDirectSequence() {
+        if (message.isBlank()) {
+            Toast.makeText(context, "Message content is required.", Toast.LENGTH_SHORT).show()
+            return
+        }
         isSending = true
         statusMessage = "Transmitting (Standard Channel)..."
         scope.launch(Dispatchers.IO) {
-            // Using Proxy.NO_PROXY ensures a direct connection
             val success = sendSecureRequest(contact, message, Proxy.NO_PROXY, "formspree")
             
             withContext(Dispatchers.Main) {
@@ -80,20 +72,22 @@ fun ContactScreen() {
     }
 
     // --- HELPER: START PUBLIC PROXY SEQUENCE ---
-    // This is called if Orbot is missing and user clicks "Continue Anyway"
     fun startPublicProxySequence() {
+        if (message.isBlank()) {
+            Toast.makeText(context, "Message content is required.", Toast.LENGTH_SHORT).show()
+            return
+        }
         isSending = true
-        statusMessage = "Initializing Secure Relay Protocol..."
+        statusMessage = "Initializing Public Proxy Protocol..."
         scope.launch {
             val success = sendWithPublicProxies(contact, message, "formspree") { status ->
-                // Don't show IP in status message to user anymore
                 withContext(Dispatchers.Main) { statusMessage = status }
             }
 
             withContext(Dispatchers.Main) {
                 isSending = false
                 if (success) {
-                    statusMessage = "Transmission Successful via Secure Relay."
+                    statusMessage = "Transmission Successful via Proxy."
                     Toast.makeText(context, "Secure Message Sent.", Toast.LENGTH_LONG).show()
                     contact = ""
                     message = ""
@@ -107,6 +101,10 @@ fun ContactScreen() {
 
     // --- HELPER: START ORBOT SEQUENCE ---
     fun startOrbotSequence() {
+        if (message.isBlank()) {
+            Toast.makeText(context, "Message content is required.", Toast.LENGTH_SHORT).show()
+            return
+        }
         isSending = true
         statusMessage = "Connecting to Tor Network..."
         scope.launch {
@@ -126,22 +124,6 @@ fun ContactScreen() {
             }
         }
     }
-    
-    // --- HELPER: CHECK ORBOT ---
-    fun checkOrbotAndSend() {
-         scope.launch(Dispatchers.IO) {
-            val orbotReady = isOrbotRunning()
-            withContext(Dispatchers.Main) {
-                if (orbotReady) {
-                    startOrbotSequence()
-                } else {
-                    // Orbot not running, fallback to public proxies automatically since user chose 'Secure Send'
-                     startPublicProxySequence()
-                }
-            }
-        }
-    }
-
 
     // --- UI CONTENT ---
     Column(
@@ -200,6 +182,17 @@ fun ContactScreen() {
         
         Spacer(modifier = Modifier.height(16.dp))
 
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Checkbox(checked = useProxy, onCheckedChange = { useProxy = it })
+            Column {
+                Text(text = "Enable Anonymity Mode", style = MaterialTheme.typography.bodyMedium)
+                Text(text = "Routes via Tor or Proxy", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+            }
+        }
+
         if (statusMessage.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -212,7 +205,29 @@ fun ContactScreen() {
         Spacer(modifier = Modifier.height(24.dp))
         
         Button(
-            onClick = { onSendMessage() }, // Trigger dialog first
+            onClick = {
+                if (message.isNotBlank()) {
+                    if (!useProxy) {
+                        // 1. Checkbox UNCHECKED -> Show Privacy Education Dialog
+                        showPrivacyDialog = true
+                    } else {
+                        // 2. Checkbox CHECKED -> Check for Orbot
+                        scope.launch(Dispatchers.IO) {
+                            val orbotReady = isOrbotRunning()
+                            withContext(Dispatchers.Main) {
+                                if (orbotReady) {
+                                    startOrbotSequence()
+                                } else {
+                                    // Trigger Orbot Missing Dialog
+                                    showOrbotMissingDialog = true
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Toast.makeText(context, "Message content is required.", Toast.LENGTH_SHORT).show()
+                }
+            },
             enabled = !isSending,
             modifier = Modifier.fillMaxWidth().height(50.dp)
         ) {
@@ -226,61 +241,82 @@ fun ContactScreen() {
         }
     }
 
-    // --- SECURITY DIALOG ---
-    if (showOrbotDialog) {
+    // --- DIALOG 1: PRIVACY EDUCATION (When sending without proxy checked) ---
+    if (showPrivacyDialog) {
         AlertDialog(
-            onDismissRequest = { showOrbotDialog = false },
-            title = { Text(text = "Secure Transmission Recommended") },
+            onDismissRequest = { showPrivacyDialog = false },
+            title = { Text(text = "Enhance Privacy?") },
             text = { 
-                Column {
-                    Text("For maximum anonymity and security, we recommend routing your message through a secure proxy network.")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Advantages:", style = MaterialTheme.typography.labelLarge)
-                    Text("• Hides your IP address")
-                    Text("• Encrypts transmission route")
-                    Text("• Bypasses local censorship")
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Orbot (Tor) offers the highest security. If not installed, we can route via secure public relays.")
-                }
+                Text("Sending directly exposes your IP address. For anonymity, we recommend using a proxy or Tor.\n\nWould you like to enable Anonymity Mode?") 
             },
             confirmButton = {
-                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Button(
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://orbot.app/"))
-                            try { context.startActivity(intent) } catch(e: Exception) { 
-                                Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
-                            }
-                            showOrbotDialog = false
-                        },
-                         modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Get Orbot (Recommended)")
+                // Button 1: Install Orbot (Sets proxy true)
+                Button(
+                    onClick = {
+                        useProxy = true
+                        showPrivacyDialog = false
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://orbot.app/"))
+                        context.startActivity(intent)
                     }
-                    
-                     Spacer(modifier = Modifier.height(8.dp))
-                     
-                    Button(
+                ) {
+                    Text("Install Orbot (Tor)")
+                }
+            },
+            dismissButton = {
+                Row {
+                    // Button 2: Use Public Proxies (Sets proxy true)
+                    TextButton(
                         onClick = {
-                            showOrbotDialog = false
-                             // Tries Orbot first, falls back to Public Proxy
-                            checkOrbotAndSend()
-                        },
-                         modifier = Modifier.fillMaxWidth()
+                            useProxy = true
+                            showPrivacyDialog = false
+                            // Note: User just enabled proxy, they must click Send again to trigger the proxy logic
+                            Toast.makeText(context, "Anonymity Mode Enabled. Press Send again.", Toast.LENGTH_SHORT).show()
+                        }
                     ) {
-                        Text("Send via Secure Proxy")
+                        Text("Use Public Proxies")
                     }
+                    // Button 3: Send Directly (Leaves proxy false, sends immediately)
+                    TextButton(
+                        onClick = {
+                            showPrivacyDialog = false
+                            startDirectSequence()
+                        }
+                    ) {
+                        Text("Send Directly")
+                    }
+                }
+            }
+        )
+    }
+
+    // --- DIALOG 2: ORBOT MISSING (When proxy checked but Orbot not found) ---
+    if (showOrbotMissingDialog) {
+        AlertDialog(
+            onDismissRequest = { showOrbotMissingDialog = false },
+            title = { Text(text = "Orbot Not Detected") },
+            text = { 
+                Text("For complete military-grade anonymity, we recommend using the Tor Network via Orbot.\n\nWithout Orbot, we can route your message through secure public proxies.") 
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://orbot.app/"))
+                        context.startActivity(intent)
+                        showOrbotMissingDialog = false
+                    }
+                ) {
+                    Text("Get Orbot")
                 }
             },
             dismissButton = {
                 TextButton(
                     onClick = {
-                        showOrbotDialog = false
-                        // User chose Direct (Unsecured)
-                        startDirectSequence()
+                        showOrbotMissingDialog = false
+                        // User chose to continue without Orbot -> Use Public Rotating Proxies
+                        startPublicProxySequence()
                     }
                 ) {
-                    Text("Continue Without Proxy (Direct)")
+                    Text("Use Public Proxies")
                 }
             }
         )
@@ -332,8 +368,7 @@ suspend fun sendWithPublicProxies(
         
         // 2. Iterate All
         for (node in shuffledProxies) {
-            // Hide IP from user status update for security/cleanliness
-            updateStatus("Routing via Secure Node $attempt/$total...")
+            updateStatus("Routing via Secure Node $attempt/$total (${node.ip})...")
             
             // SECURITY: Use 'createUnresolved'. 
             // This prevents the Android OS from resolving the DNS. 
