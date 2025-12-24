@@ -17,12 +17,14 @@ Click the banner or the button below to download the latest version.
 
 [**⬇️ DOWNLOAD THE APP (.APK)**](../../releases/latest)
 
+
+---
+
 </div>
 <div align="center">
   <video src="https://github.com/StellariumFoundation/Stellarium-App/raw/refs/heads/master/app.mp4" width="100%" autoplay loop muted playsinline controls>
   </video>
 </div>
----
 
 ## 🦅 Introduction
 
