@@ -10,7 +10,7 @@
 [![License](https://img.shields.io/badge/License-Proprietary-orange?style=for-the-badge)](#)
 
 <a href="https://github.com/StellariumFoundation/Stellarium-App/releases">
-  <img src="https://raw.githubusercontent.com/StellariumFoundation/Stellarium-App/main/screenshots/banner.png" alt="Stellarium App Banner" width="100%" style="border-radius: 10px;">
+  <img src="https://raw.githubusercontent.com/StellariumFoundation/Stellarium-App/refs/heads/master/app/src/main/res/mipmap-xxxhdpi/ic_launcher_monochrome.png" alt="Stellarium App Banner" width="100%" style="border-radius: 10px;">
 </a>
 
 Click the banner or the button below to download the latest version.
