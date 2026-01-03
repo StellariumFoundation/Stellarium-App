@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import android.content.pm.PackageManager
 import android.widget.Toast
 import android.content.Intent
 import android.net.Uri
@@ -28,6 +29,7 @@ import java.net.HttpURLConnection
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.URL
+import java.net.Socket
 import java.nio.charset.StandardCharsets
 
 @Composable
@@ -37,12 +39,14 @@ fun ContactScreen() {
     var isSending by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("") }
     
-    // Checkbox for Proxy Only (IOTA is now automatic/hidden)
-    var useProxy by remember { mutableStateOf(true) } 
-    
+    var showTorDialog by remember { mutableStateOf(false) }
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+    val packageManager = context.packageManager
+
+    val torProxy = ProxyNode("127.0.0.1", 9050, Proxy.Type.SOCKS)
 
     fun handleSuccess(channel: String) {
         isSending = false
@@ -50,6 +54,87 @@ fun ContactScreen() {
         Toast.makeText(context, "Message Sent ($channel)", Toast.LENGTH_LONG).show()
         contact = ""
         message = ""
+    }
+
+    // Helper to check if Orbot is installed
+    fun isOrbotInstalled(): Boolean {
+        return try {
+            packageManager.getApplicationInfo("org.torproject.android", 0)
+            true
+        } catch (e: PackageManager.NameNotFoundException) {
+            false
+        }
+    }
+
+    // Helper to test if Tor SOCKS proxy is reachable (Orbot running & connected)
+    suspend fun isTorAvailable(): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val socket = Socket()
+                val address = InetSocketAddress.createUnresolved(torProxy.ip, torProxy.port)
+                socket.connect(address, 3000) // 3-second timeout
+                socket.close()
+                true
+            } catch (e: Exception) {
+                false
+            }
+        }
+    }
+
+    if (showTorDialog) {
+        AlertDialog(
+            onDismissRequest = { showTorDialog = false },
+            title = { Text("Tor (Orbot) Not Available") },
+            text = {
+                Text("For maximum anonymity, Orbot (Tor) is recommended.\n\nYou can download it now or proceed with public proxy rotation.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showTorDialog = false
+                    // Proceed with public proxies
+                    scope.launch {
+                        statusMessage = "Routing via public proxy rotation..."
+                        val shimmerSuccess = retryWithProxies(contact, message, "shimmer") { msg ->
+                            withContext(Dispatchers.Main) { statusMessage = msg }
+                        }
+                        val formspreeSuccess = retryWithProxies(contact, message, "formspree") { msg ->
+                            withContext(Dispatchers.Main) { statusMessage = msg }
+                        }
+
+                        if (formspreeSuccess || shimmerSuccess) {
+                            val channel = if (formspreeSuccess) "Secure Email" else "Shimmer Tangle"
+                            withContext(Dispatchers.Main) { handleSuccess(channel) }
+                        } else {
+                            val formSubmitSuccess = retryWithProxies(contact, message, "formsubmit") { msg ->
+                                withContext(Dispatchers.Main) { statusMessage = msg }
+                            }
+                            if (formSubmitSuccess) {
+                                withContext(Dispatchers.Main) { handleSuccess("Backup Email") }
+                            } else {
+                                withContext(Dispatchers.Main) {
+                                    isSending = false
+                                    statusMessage = "All channels unreachable."
+                                    // Add offline email fallback if desired
+                                }
+                            }
+                        }
+                    }
+                }) {
+                    Text("Proceed with Proxies")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showTorDialog = false
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        data = Uri.parse("https://play.google.com/store/apps/details?id=org.torproject.android")
+                    }
+                    context.startActivity(intent)
+                }) {
+                    Text("Download Orbot")
+                }
+            }
+        )
     }
 
     Column(
@@ -84,7 +169,7 @@ fun ContactScreen() {
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-             colors = OutlinedTextFieldDefaults.colors(
+            colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surface,
                 unfocusedContainerColor = MaterialTheme.colorScheme.surface
             )
@@ -108,13 +193,32 @@ fun ContactScreen() {
         
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Options Row (Only Proxy Toggle Remains)
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
+        Text(
+            text = "Maximum anonymity via Tor (Orbot) is prioritized. Public proxies used only if Tor unavailable.",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        TextButton(
+            onClick = {
+                if (isOrbotInstalled()) {
+                    val launchIntent = packageManager.getLaunchIntentForPackage("org.torproject.android")
+                    if (launchIntent != null) {
+                        context.startActivity(launchIntent)
+                    } else {
+                        Toast.makeText(context, "Orbot installed but cannot launch.", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        data = Uri.parse("https://play.google.com/store/apps/details?id=org.torproject.android")
+                    }
+                    context.startActivity(intent)
+                }
+            }
         ) {
-            Checkbox(checked = useProxy, onCheckedChange = { useProxy = it })
-            Text("Hide IP (Proxy Rotation)", style = MaterialTheme.typography.bodyMedium)
+            Text(if (isOrbotInstalled()) "Open Orbot (Start Tor)" else "Download Orbot (Recommended)")
         }
 
         if (statusMessage.isNotEmpty()) {
@@ -135,48 +239,24 @@ fun ContactScreen() {
                     statusMessage = "Initiating Sequence..."
                     
                     scope.launch {
-                        // 1. IOTA BLOCKCHAIN (Always Attempt First)
-                        val iotaSuccess = retryWithProxies(contact, message, useProxy, "iota") { msg ->
-                            withContext(Dispatchers.Main) { statusMessage = msg }
-                        }
-                        
-                        // We continue to email even if IOTA succeeds, for redundancy.
-                        // Or you can return here if IOTA is enough.
-                        // For now, we proceed to ensure you get a notification.
+                        val torAvailable = isTorAvailable()
 
-                        // 2. EMAIL CHANNEL (Formspree)
-                        val formspreeSuccess = retryWithProxies(contact, message, useProxy, "formspree") { msg ->
-                            withContext(Dispatchers.Main) { statusMessage = msg }
-                        }
-
-                        if (formspreeSuccess || iotaSuccess) {
-                            val channel = if (formspreeSuccess) "Secure Email" else "IOTA Tangle"
-                            withContext(Dispatchers.Main) { handleSuccess(channel) }
-                        } else {
-                            // 3. FALLBACK (FormSubmit)
-                            val formSubmitSuccess = retryWithProxies(contact, message, useProxy, "formsubmit") { msg ->
+                        if (torAvailable) {
+                            statusMessage = "Tor (Orbot) detected – routing via Tor..."
+                            val success = retryWithSingleProxy(torProxy, contact, message) { msg ->
                                 withContext(Dispatchers.Main) { statusMessage = msg }
                             }
-                            
-                            if (formSubmitSuccess) {
-                                withContext(Dispatchers.Main) { handleSuccess("Backup Email") }
+                            if (success) {
+                                withContext(Dispatchers.Main) { handleSuccess("Tor (Orbot)") }
                             } else {
-                                // 4. OFFLINE FALLBACK
                                 withContext(Dispatchers.Main) {
                                     isSending = false
-                                    statusMessage = "Secure Channels Unreachable."
-                                    val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                        data = Uri.parse("mailto:stellar.foundation.us@gmail.com")
-                                        putExtra(Intent.EXTRA_SUBJECT, "Stellarium Intel")
-                                        putExtra(Intent.EXTRA_TEXT, "Contact: $contact\n\n$message")
-                                    }
-                                    try {
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "No email client found.", Toast.LENGTH_SHORT).show()
-                                    }
+                                    statusMessage = "Tor channels failed. Check Orbot connection."
                                 }
                             }
+                        } else {
+                            isSending = false
+                            showTorDialog = true
                         }
                     }
                 } else {
@@ -204,7 +284,7 @@ fun ContactScreen() {
 // --- PROXY DATA ---
 data class ProxyNode(val ip: String, val port: Int, val type: Proxy.Type)
 
-val anonymousProxies = listOf(
+val publicProxies = listOf(
     // HTTP Proxies
     ProxyNode("139.177.229.232", 8080, Proxy.Type.HTTP),
     ProxyNode("139.177.229.211", 8080, Proxy.Type.HTTP),
@@ -245,35 +325,45 @@ val anonymousProxies = listOf(
     ProxyNode("157.175.170.170", 799, Proxy.Type.SOCKS)
 )
 
-// --- PROXY ROTATOR ENGINE ---
+// --- SINGLE PROXY (TOR) RETRY ---
+suspend fun retryWithSingleProxy(
+    proxyNode: ProxyNode,
+    contact: String,
+    message: String,
+    updateStatus: suspend (String) -> Unit
+): Boolean {
+    return withContext(Dispatchers.IO) {
+        updateStatus("Routing via Tor (${proxyNode.ip}:${proxyNode.port})...")
+        val socketAddress = InetSocketAddress.createUnresolved(proxyNode.ip, proxyNode.port)
+        val proxy = Proxy(proxyNode.type, socketAddress)
 
+        // Try services in prioritized order
+        if (executeService("shimmer", contact, message, proxy)) return@withContext true
+        if (executeService("formspree", contact, message, proxy)) return@withContext true
+        if (executeService("formsubmit", contact, message, proxy)) return@withContext true
+
+        false
+    }
+}
+
+// --- PUBLIC PROXY ROTATOR (fallback) ---
 suspend fun retryWithProxies(
     contact: String, 
     message: String, 
-    useProxy: Boolean, 
     service: String,
     updateStatus: suspend (String) -> Unit
 ): Boolean {
     return withContext(Dispatchers.IO) {
-        // Direct Send if Proxy Disabled
-        if (!useProxy) {
-            return@withContext executeService(service, contact, message, Proxy.NO_PROXY)
-        }
-
-        // Shuffle & Retry Logic
-        val shuffledProxies = anonymousProxies.shuffled()
+        val shuffledProxies = publicProxies.shuffled()
         var attempt = 1
         
         for (node in shuffledProxies) {
             updateStatus("Routing $service via Node $attempt/${shuffledProxies.size} (${node.ip})...")
             
-            // Unresolved Address forces remote DNS resolution (Prevents leaks)
             val socketAddress = InetSocketAddress.createUnresolved(node.ip, node.port)
             val proxy = Proxy(node.type, socketAddress)
             
-            val success = executeService(service, contact, message, proxy)
-
-            if (success) {
+            if (executeService(service, contact, message, proxy)) {
                 Log.d("ProxyManager", "Tunnel Established: ${node.ip}")
                 return@withContext true
             }
@@ -281,27 +371,25 @@ suspend fun retryWithProxies(
             attempt++
         }
 
-        return@withContext false
+        false
     }
 }
 
 // --- SERVICE DISPATCHER ---
-
-fun executeService(service: String, contact: String, message: String, proxy: Proxy): Boolean {
+suspend fun executeService(service: String, contact: String, message: String, proxy: Proxy): Boolean {
     return when (service) {
-        "iota" -> sendViaIota(contact, message, proxy)
+        "shimmer" -> sendViaShimmer(contact, message, proxy)
         "formspree" -> sendViaFormspree(contact, message, proxy)
         "formsubmit" -> sendViaFormSubmit(contact, message, proxy)
         else -> false
     }
 }
 
-// --- 1. IOTA TANGLE (Blockchain) ---
-fun sendViaIota(contact: String, message: String, proxy: Proxy): Boolean {
+// --- 1. SHIMMER TANGLE (Blockchain) ---
+suspend fun sendViaShimmer(contact: String, message: String, proxy: Proxy): Boolean {
     var conn: HttpURLConnection? = null
     try {
-        // Stardust Mainnet API
-        val nodeUrl = "https://api.stardust-mainnet.iotaledger.net/api/core/v2/blocks"
+        val nodeUrl = "https://api.shimmer.network/api/core/v2/blocks"
         val url = URL(nodeUrl)
         
         conn = url.openConnection(proxy) as HttpURLConnection
@@ -312,12 +400,10 @@ fun sendViaIota(contact: String, message: String, proxy: Proxy): Boolean {
         conn.connectTimeout = 15000
         conn.setRequestProperty("Content-Type", "application/json")
 
-        // Hex Encode Payload
         val fullPayload = "CONTACT: $contact\n\nMESSAGE: $message"
         val hexData = fullPayload.toByteArray(StandardCharsets.UTF_8).joinToString("") { "%02x".format(it) }
         val hexTag = "STELLARIUM_INTEL_VAULT".toByteArray(StandardCharsets.UTF_8).joinToString("") { "%02x".format(it) }
 
-        // IOTA Block Structure
         val jsonPayload = JSONObject()
         jsonPayload.put("protocolVersion", 2)
         
@@ -335,9 +421,34 @@ fun sendViaIota(contact: String, message: String, proxy: Proxy): Boolean {
         writer.close()
 
         val responseCode = conn.responseCode
-        // 201 Created or 200 OK
-        return responseCode in 200..299
+        if (responseCode in 200..299) {
+            val response = BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
+            val json = JSONObject(response)
+            val blockId = json.getString("blockId")
+            Log.d("Shimmer", "Block ID: $blockId")
+
+            delay(5000)
+
+            var verifyConn: HttpURLConnection? = null
+            try {
+                val verifyUrl = URL("$nodeUrl/$blockId")
+                verifyConn = verifyUrl.openConnection(proxy) as HttpURLConnection
+                verifyConn.requestMethod = "GET"
+                verifyConn.readTimeout = 15000
+                verifyConn.connectTimeout = 15000
+
+                return verifyConn.responseCode == 200
+            } catch (e: Exception) {
+                Log.e("Shimmer", "Verification failed: ${e.message}")
+                return false
+            } finally {
+                verifyConn?.disconnect()
+            }
+        } else {
+            return false
+        }
     } catch (e: Exception) {
+        Log.e("Shimmer", "Error: ${e.message}")
         return false
     } finally {
         conn?.disconnect()
@@ -345,7 +456,7 @@ fun sendViaIota(contact: String, message: String, proxy: Proxy): Boolean {
 }
 
 // --- 2. FORMSPREE (Primary Email) ---
-fun sendViaFormspree(contact: String, message: String, proxy: Proxy): Boolean {
+suspend fun sendViaFormspree(contact: String, message: String, proxy: Proxy): Boolean {
     var conn: HttpURLConnection? = null
     try {
         val formId = "mzdpovoa" 
@@ -372,6 +483,7 @@ fun sendViaFormspree(contact: String, message: String, proxy: Proxy): Boolean {
 
         return conn.responseCode == 200
     } catch (e: Exception) {
+        Log.e("Formspree", "Error: ${e.message}")
         return false
     } finally {
         conn?.disconnect()
@@ -379,7 +491,7 @@ fun sendViaFormspree(contact: String, message: String, proxy: Proxy): Boolean {
 }
 
 // --- 3. FORMSUBMIT (Backup Email) ---
-fun sendViaFormSubmit(contact: String, message: String, proxy: Proxy): Boolean {
+suspend fun sendViaFormSubmit(contact: String, message: String, proxy: Proxy): Boolean {
     var conn: HttpURLConnection? = null
     try {
         val url = URL("https://formsubmit.co/ajax/stellar.foundation.us@gmail.com")
@@ -408,6 +520,7 @@ fun sendViaFormSubmit(contact: String, message: String, proxy: Proxy): Boolean {
 
         return conn.responseCode == 200
     } catch (e: Exception) {
+        Log.e("FormSubmit", "Error: ${e.message}")
         return false
     } finally {
         conn?.disconnect()
