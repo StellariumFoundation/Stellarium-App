@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* --- Core Typography: Frutiger Neue --- */
+        /* Assuming 'Frutiger Neue' is available or substituted correctly */
         @font-face {
             font-family: 'Frutiger Neue';
             src: local('Frutiger Neue'), local('Frutiger'), local('Frutiger Linotype'), local('Segoe UI'), sans-serif;
@@ -37,7 +38,7 @@
             min-height: 100vh;
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
-            overflow-x: hidden;
+            overflow-x: hidden; /* Prevent horizontal scroll */
             position: relative;
         }
         
@@ -50,6 +51,7 @@
             width: 100%;
             height: 100%;
             z-index: -1;
+            /* Simple SVG pattern of stars */
             background-image: url('data:image/svg+xml;utf8,<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="stars" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="white" opacity="0.5"/><circle cx="50" cy="40" r="1.5" fill="white" opacity="0.3"/><circle cx="80" cy="70" r="0.8" fill="white" opacity="0.7"/><circle cx="20" cy="80" r="1.2" fill="white" opacity="0.4"/></pattern></defs><rect width="100%" height="100%" fill="url(%23stars)" /></svg>');
             opacity: 0.4;
             pointer-events: none;
@@ -59,9 +61,9 @@
             max-width: 1000px;
             margin: 0 auto;
             padding: 40px 20px;
-            display: flex;
+            display: flex; /* Use flexbox for layout control */
             flex-direction: column;
-            align-items: center;
+            align-items: center; /* Center everything horizontally */
         }
 
         /* --- Header Section --- */
@@ -69,27 +71,10 @@
             text-align: center;
             margin-bottom: 50px;
             animation: fadeIn 1s ease-out;
-            width: 100%;
+            width: 100%; /* Ensure header takes full width */
             display: flex;
             flex-direction: column;
             align-items: center;
-        }
-
-        /* Video Container Styling */
-        .video-container {
-            width: 100%;
-            max-width: 320px; /* Constrain width to look like a phone screen or reasonable preview */
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--card-border);
-            margin-bottom: 30px;
-        }
-
-        video {
-            width: 100%;
-            height: auto;
-            display: block;
         }
 
         h1 {
@@ -116,16 +101,16 @@
             font-size: 1rem;
             max-width: 700px;
             margin: 0 auto 30px auto;
-            text-align: center;
+            text-align: center; /* Explicitly center text */
         }
 
         /* --- Buttons --- */
         .btn-container {
             display: flex;
             gap: 15px;
-            justify-content: center;
+            justify-content: center; /* Center buttons horizontally */
             flex-wrap: wrap;
-            width: 100%;
+            width: 100%; /* Ensure container spans width */
         }
 
         .btn {
@@ -188,7 +173,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
-            width: 100%;
+            width: 100%; /* Ensure grid takes full width */
         }
 
         /* --- App Cards --- */
@@ -203,8 +188,8 @@
             backdrop-filter: blur(20px);
             display: flex;
             flex-direction: column;
-            align-items: center;
-            text-align: center;
+            align-items: center; /* Center card content */
+            text-align: center; /* Center text inside card */
         }
 
         .card:hover {
@@ -244,8 +229,8 @@
             color: #d0d0e0;
             border-top: 1px solid rgba(255,255,255,0.05);
             padding-top: 15px;
-            width: 100%;
-            text-align: left;
+            width: 100%; /* Ensure details take full width */
+            text-align: left; /* Keep list left-aligned for readability */
         }
 
         /* --- Features List inside Cards --- */
@@ -292,19 +277,16 @@
             .grid { grid-template-columns: 1fr; }
             .btn-container { 
                 flex-direction: column; 
-                width: 100%;
-                align-items: center;
+                width: 100%; /* Ensure container fills width */
+                align-items: center; /* Center buttons in column */
             }
             .btn { 
                 width: 100%; 
                 border-radius: 12px; 
-                max-width: 300px;
+                max-width: 300px; /* Prevent overly wide buttons on very small screens */
             }
             .container {
-                padding: 20px 15px;
-            }
-            .video-container {
-                max-width: 100%;
+                padding: 20px 15px; /* Reduce padding on mobile */
             }
         }
 
@@ -321,18 +303,10 @@
         
         <!-- Header Section -->
         <header>
-            <div style="font-size: 4rem; margin-bottom: 10px;">💫✨💫</div>
+            <div style="font-size: 4rem; margin-bottom: 10px;">⭐️💫🌟✨🌟💫⭐️</div>
             <h1>The Stellarium App</h1>
             <div class="subtitle">Propelling Global Wealth Creation & Wellness</div>
             
-            <!-- Video Embed -->
-            <div class="video-container">
-                <video autoplay muted loop playsinline>
-                    <source src="https://github.com/StellariumFoundation/Stellarium-App/raw/refs/heads/master/app.mp4" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
-            </div>
-
             <p class="description">
                 Through high-profile advising, technology, wisdom, and innovative fortitude, we implement commoditizing solutions in business, policy, finance, personal wealth creation, relationships, and branding. Access the full power of The Stellarium Foundation in your pocket.
             </p>
