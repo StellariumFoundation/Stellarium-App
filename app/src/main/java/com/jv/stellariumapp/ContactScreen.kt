@@ -17,13 +17,19 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
-import java.net.*
+import java.net.HttpURLConnection
+import java.net.InetSocketAddress
+import java.net.Proxy
+import java.net.Socket
+import java.net.URL
+import java.nio.charset.StandardCharsets
 
 // --- DATA STRUCTURES ---
 data class ProxyNode(val ip: String, val port: Int, val type: Proxy.Type)
@@ -35,97 +41,96 @@ fun ContactScreen() {
     var message by remember { mutableStateOf("") }
     var isSending by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("") }
-    var useProxy by remember { mutableStateOf(false) } // Default false -> Direct Send
     
-    // Dialog States
-    var showPrivacyDialog by remember { mutableStateOf(false) } // Privacy education dialog
-    var showOrbotMissingDialog by remember { mutableStateOf(false) } // Orbot missing dialog
+    // Dialog State
+    var showOrbotDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
-    // --- HELPER: START DIRECT SEND (NO PROXY) ---
-    fun startDirectSequence() {
-        if (message.isBlank()) {
-            Toast.makeText(context, "Message content is required.", Toast.LENGTH_SHORT).show()
-            return
-        }
+    // --- LOGIC: START TRANSMISSION ---
+    fun startTransmission(useTor: Boolean) {
         isSending = true
-        statusMessage = "Transmitting (Standard Channel)..."
+        showOrbotDialog = false
+        
         scope.launch(Dispatchers.IO) {
-            val success = sendSecureRequest(contact, message, Proxy.NO_PROXY, "formspree")
+            withContext(Dispatchers.Main) { 
+                statusMessage = if (useTor) "Routing via Tor Network..." else "Routing via Public Proxy Chain..." 
+            }
+
+            // 1. Configure the Proxy Strategy
+            val proxyStrategy = if (useTor) {
+                // Fixed Tor Proxy
+                listOf(ProxyNode("127.0.0.1", 9050, Proxy.Type.SOCKS))
+            } else {
+                // Public Proxy Rotation (Shuffle for anonymity)
+                publicProxies.shuffled()
+            }
+
+            // 2. Broadcast to Shimmer (IOTA Blockchain)
+            var shimmerSuccess = false
+            var shimmerBlockId = ""
             
-            withContext(Dispatchers.Main) {
-                isSending = false
-                if (success) {
-                    statusMessage = "Message Sent Successfully."
-                    Toast.makeText(context, "Message Sent", Toast.LENGTH_SHORT).show()
-                    contact = ""
-                    message = ""
-                } else {
-                    statusMessage = "Transmission Failed. Check Internet."
-                    Toast.makeText(context, "Failed to send message.", Toast.LENGTH_SHORT).show()
+            // Try to broadcast using the proxy strategy
+            for (node in proxyStrategy) {
+                val proxy = Proxy(node.type, InetSocketAddress.createUnresolved(node.ip, node.port))
+                val result = sendViaShimmer(contact, message, proxy)
+                if (result != null) {
+                    shimmerSuccess = true
+                    shimmerBlockId = result
+                    break // Stop rotating once successful
                 }
-            }
-        }
-    }
-
-    // --- HELPER: START PUBLIC PROXY SEQUENCE ---
-    fun startPublicProxySequence() {
-        if (message.isBlank()) {
-            Toast.makeText(context, "Message content is required.", Toast.LENGTH_SHORT).show()
-            return
-        }
-        isSending = true
-        statusMessage = "Initializing Public Proxy Protocol..."
-        scope.launch {
-            val success = sendWithPublicProxies(contact, message, "formspree") { status ->
-                withContext(Dispatchers.Main) { statusMessage = status }
             }
 
             withContext(Dispatchers.Main) {
-                isSending = false
-                if (success) {
-                    statusMessage = "Transmission Successful via Proxy."
-                    Toast.makeText(context, "Secure Message Sent.", Toast.LENGTH_LONG).show()
-                    contact = ""
-                    message = ""
-                } else {
-                    statusMessage = "All Secure Nodes Failed."
-                    Toast.makeText(context, "Network Unreachable.", Toast.LENGTH_LONG).show()
-                }
+                if (shimmerSuccess) statusMessage = "Blockchain Confirmed. Sending Email..."
             }
-        }
-    }
 
-    // --- HELPER: START ORBOT SEQUENCE ---
-    fun startOrbotSequence() {
-        if (message.isBlank()) {
-            Toast.makeText(context, "Message content is required.", Toast.LENGTH_SHORT).show()
-            return
-        }
-        isSending = true
-        statusMessage = "Connecting to Tor Network..."
-        scope.launch {
-            val success = sendViaTor(contact, message, "formspree")
+            // 3. Send Email (Formspree -> FormSubmit Fallback)
+            var emailSuccess = false
             
+            // Try Formspree first with rotation
+            for (node in proxyStrategy) {
+                val proxy = Proxy(node.type, InetSocketAddress.createUnresolved(node.ip, node.port))
+                if (sendViaFormspree(contact, message, proxy)) {
+                    emailSuccess = true
+                    break
+                }
+            }
+
+            // If Formspree failed, try FormSubmit
+            if (!emailSuccess) {
+                for (node in proxyStrategy) {
+                    val proxy = Proxy(node.type, InetSocketAddress.createUnresolved(node.ip, node.port))
+                    if (sendViaFormSubmit(contact, message, proxy)) {
+                        emailSuccess = true
+                        break
+                    }
+                }
+            }
+
+            // 4. Final Status Update
             withContext(Dispatchers.Main) {
                 isSending = false
-                if (success) {
-                    statusMessage = "Transmission Successful via Tor."
-                    Toast.makeText(context, "Anonymized Message Sent.", Toast.LENGTH_LONG).show()
+                if (shimmerSuccess || emailSuccess) {
+                    val status = StringBuilder("Transmission Complete.")
+                    if (shimmerSuccess) status.append("\nBlock ID: $shimmerBlockId")
+                    if (emailSuccess) status.append("\nEmail Sent.")
+                    
+                    statusMessage = status.toString()
+                    Toast.makeText(context, "Secure Transmission Complete", Toast.LENGTH_LONG).show()
                     contact = ""
                     message = ""
                 } else {
-                    statusMessage = "Tor Circuit Failed."
-                    Toast.makeText(context, "Check Orbot Connection.", Toast.LENGTH_LONG).show()
+                    statusMessage = "All secure channels failed."
+                    Toast.makeText(context, "Connection Failed. Try installing Orbot.", Toast.LENGTH_LONG).show()
                 }
             }
         }
     }
 
-    // --- UI CONTENT ---
+    // --- UI LAYOUT ---
     Column(
         modifier = Modifier
             .padding(24.dp)
@@ -134,7 +139,7 @@ fun ContactScreen() {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Contact Us", 
+            text = "Secure Comms", 
             style = MaterialTheme.typography.headlineMedium, 
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.primary
@@ -143,7 +148,7 @@ fun ContactScreen() {
         Spacer(modifier = Modifier.height(8.dp))
         
         Text(
-            text = "Send Feedback, Suggestions, Proposals, or Business Inquiries to the Stellarium Foundation.",
+            text = "Send Intelligence or Directives to the Stellarium Foundation.\n(Routes via Shimmer Blockchain & Encrypted Email)",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onBackground
@@ -154,7 +159,7 @@ fun ContactScreen() {
         OutlinedTextField(
             value = contact,
             onValueChange = { contact = it },
-            label = { Text("Your Contact (Email/Social)") },
+            label = { Text("Contact (Optional)") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
@@ -169,7 +174,7 @@ fun ContactScreen() {
         OutlinedTextField(
             value = message,
             onValueChange = { message = it },
-            label = { Text("Your Message") },
+            label = { Text("Intel / Message") },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(200.dp),
@@ -182,45 +187,35 @@ fun ContactScreen() {
         
         Spacer(modifier = Modifier.height(16.dp))
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Checkbox(checked = useProxy, onCheckedChange = { useProxy = it })
-            Column {
-                Text(text = "Enable Anonymity Mode", style = MaterialTheme.typography.bodyMedium)
-                Text(text = "Routes via Tor or Proxy", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
-            }
-        }
-
         if (statusMessage.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = statusMessage,
-                color = MaterialTheme.colorScheme.tertiary,
-                style = MaterialTheme.typography.labelMedium
-            )
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = statusMessage,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(12.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-        
         Button(
             onClick = {
                 if (message.isNotBlank()) {
-                    if (!useProxy) {
-                        // 1. Checkbox UNCHECKED -> Show Privacy Education Dialog
-                        showPrivacyDialog = true
-                    } else {
-                        // 2. Checkbox CHECKED -> Check for Orbot
-                        scope.launch(Dispatchers.IO) {
-                            val orbotReady = isOrbotRunning()
-                            withContext(Dispatchers.Main) {
-                                if (orbotReady) {
-                                    startOrbotSequence()
-                                } else {
-                                    // Trigger Orbot Missing Dialog
-                                    showOrbotMissingDialog = true
-                                }
+                    // Step 1: Check if Orbot (Tor) is running
+                    scope.launch(Dispatchers.IO) {
+                        val isTorAvailable = checkOrbotConnection()
+                        withContext(Dispatchers.Main) {
+                            if (isTorAvailable) {
+                                // Tor is running, start immediately
+                                startTransmission(useTor = true)
+                            } else {
+                                // Tor not found, show dialog
+                                showOrbotDialog = true
                             }
                         }
                     }
@@ -232,88 +227,43 @@ fun ContactScreen() {
             modifier = Modifier.fillMaxWidth().height(50.dp)
         ) {
             if (isSending) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
                 Spacer(modifier = Modifier.width(12.dp))
-                Text("Transmitting...")
+                Text("Anonymizing...")
             } else {
-                Text("Send Message")
+                Text("Broadcast Securely")
             }
         }
     }
 
-    // --- DIALOG 1: PRIVACY EDUCATION (When sending without proxy checked) ---
-    if (showPrivacyDialog) {
+    // --- DIALOG: TOR MISSING ---
+    if (showOrbotDialog) {
         AlertDialog(
-            onDismissRequest = { showPrivacyDialog = false },
-            title = { Text(text = "Enhance Privacy?") },
+            onDismissRequest = { showOrbotDialog = false },
+            title = { Text("Tor Network Not Detected") },
             text = { 
-                Text("Sending directly exposes your IP address. For anonymity, we recommend using a proxy or Tor.\n\nWould you like to enable Anonymity Mode?") 
-            },
-            confirmButton = {
-                // Button 1: Install Orbot (Sets proxy true)
-                Button(
-                    onClick = {
-                        useProxy = true
-                        showPrivacyDialog = false
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://orbot.app/"))
-                        context.startActivity(intent)
-                    }
-                ) {
-                    Text("Install Orbot (Tor)")
-                }
-            },
-            dismissButton = {
-                Row {
-                    // Button 2: Use Public Proxies (Sets proxy true)
-                    TextButton(
-                        onClick = {
-                            useProxy = true
-                            showPrivacyDialog = false
-                            // Note: User just enabled proxy, they must click Send again to trigger the proxy logic
-                            Toast.makeText(context, "Anonymity Mode Enabled. Press Send again.", Toast.LENGTH_SHORT).show()
-                        }
-                    ) {
-                        Text("Use Public Proxies")
-                    }
-                    // Button 3: Send Directly (Leaves proxy false, sends immediately)
-                    TextButton(
-                        onClick = {
-                            showPrivacyDialog = false
-                            startDirectSequence()
-                        }
-                    ) {
-                        Text("Send Directly")
-                    }
-                }
-            }
-        )
-    }
-
-    // --- DIALOG 2: ORBOT MISSING (When proxy checked but Orbot not found) ---
-    if (showOrbotMissingDialog) {
-        AlertDialog(
-            onDismissRequest = { showOrbotMissingDialog = false },
-            title = { Text(text = "Orbot Not Detected") },
-            text = { 
-                Text("For complete military-grade anonymity, we recommend using the Tor Network via Orbot.\n\nWithout Orbot, we can route your message through secure public proxies.") 
+                Text("For maximum security, we recommend installing Orbot to route traffic through the Tor network.\n\nWithout Orbot, we will use public proxies, which are less secure.") 
             },
             confirmButton = {
                 Button(
                     onClick = {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://orbot.app/"))
                         context.startActivity(intent)
-                        showOrbotMissingDialog = false
+                        showOrbotDialog = false
                     }
                 ) {
-                    Text("Get Orbot")
+                    Text("Install Orbot")
                 }
             },
             dismissButton = {
                 TextButton(
                     onClick = {
-                        showOrbotMissingDialog = false
-                        // User chose to continue without Orbot -> Use Public Rotating Proxies
-                        startPublicProxySequence()
+                        // User chose to fallback to public proxies
+                        startTransmission(useTor = false)
                     }
                 ) {
                     Text("Use Public Proxies")
@@ -324,18 +274,14 @@ fun ContactScreen() {
 }
 
 // =========================================================================
-// ====================     NETWORKING LOGIC     ===========================
+// ====================     NETWORKING LAYER     ===========================
 // =========================================================================
 
-const val TOR_HOST = "127.0.0.1"
-const val TOR_PORT = 9050
-
-// --- 1. TOR DETECTION ---
-fun isOrbotRunning(): Boolean {
+// --- 1. TOR CHECKER ---
+fun checkOrbotConnection(): Boolean {
     return try {
         val socket = Socket()
-        // Try to connect to local Tor SOCKS port with a short timeout
-        socket.connect(InetSocketAddress(TOR_HOST, TOR_PORT), 500)
+        socket.connect(InetSocketAddress("127.0.0.1", 9050), 500)
         socket.close()
         true
     } catch (e: Exception) {
@@ -343,203 +289,167 @@ fun isOrbotRunning(): Boolean {
     }
 }
 
-// --- 2. SEND VIA TOR ---
-suspend fun sendViaTor(contact: String, message: String, service: String): Boolean {
-    return withContext(Dispatchers.IO) {
-        // Create a SOCKS proxy pointing to localhost:9050
-        val torProxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress(TOR_HOST, TOR_PORT))
-        return@withContext sendSecureRequest(contact, message, torProxy, service)
-    }
-}
-
-// --- 3. SEND VIA PUBLIC PROXY ROTATION ---
-suspend fun sendWithPublicProxies(
-    contact: String, 
-    message: String, 
-    service: String,
-    updateStatus: suspend (String) -> Unit
-): Boolean {
-    return withContext(Dispatchers.IO) {
-        
-        // 1. Shuffle Once
-        val shuffledProxies = anonymousProxies.shuffled()
-        var attempt = 1
-        val total = shuffledProxies.size
-        
-        // 2. Iterate All
-        for (node in shuffledProxies) {
-            updateStatus("Routing via Secure Node $attempt/$total (${node.ip})...")
-            
-            // SECURITY: Use 'createUnresolved'. 
-            // This prevents the Android OS from resolving the DNS. 
-            // We pass the hostname to the proxy, and the PROXY resolves it.
-            val socketAddress = InetSocketAddress.createUnresolved(node.ip, node.port)
-            val proxy = Proxy(node.type, socketAddress)
-            
-            val success = sendSecureRequest(contact, message, proxy, service)
-
-            if (success) {
-                Log.d("ProxyManager", "Secure Tunnel Established: ${node.ip}")
-                return@withContext true
-            }
-            
-            Log.e("ProxyManager", "Node Dead/Blocked: ${node.ip}. Rotating...")
-            attempt++
-        }
-
-        return@withContext false
-    }
-}
-
-// --- 4. UNIFIED SECURE REQUEST (HARDENED) ---
-/**
- * Unified request handler. 
- * Pass Proxy.NO_PROXY for direct connection.
- */
-fun sendSecureRequest(contact: String, message: String, proxy: Proxy, service: String): Boolean {
+// --- 2. SHIMMER BLOCKCHAIN (IOTA) ---
+// Returns Block ID String if success, null otherwise
+fun sendViaShimmer(contact: String, message: String, proxy: Proxy): String? {
     var conn: HttpURLConnection? = null
     try {
-        val targetUrl = if (service == "formspree") 
-            "https://formspree.io/f/mzdpovoa" 
-        else 
-            "https://formsubmit.co/ajax/stellar.foundation.us@gmail.com"
-
-        val url = URL(targetUrl)
+        // Shimmer Mainnet Node
+        val nodeUrl = "https://api.shimmer.network/api/core/v2/blocks"
+        val url = URL(nodeUrl)
         
-        // This is where the magic happens. 
-        // If proxy is Proxy.NO_PROXY, it sends directly.
-        // If proxy is an HTTP/SOCKS object, it tunnels.
         conn = url.openConnection(proxy) as HttpURLConnection
         conn.requestMethod = "POST"
         conn.doOutput = true
         conn.doInput = true
-        
-        // TIMEOUTS: 
-        // If using a proxy, we want to fail fast (3s to connect).
-        // If NO_PROXY (Direct), standard mobile networks might need a bit more time (e.g. 10s).
-        if (proxy == Proxy.NO_PROXY) {
-            conn.connectTimeout = 10000 
-            conn.readTimeout = 10000
-        } else {
-            conn.connectTimeout = 3000
-            conn.readTimeout = 5000 
-        }
-        
-        // --- ANTI-FINGERPRINTING HEADERS ---
+        conn.readTimeout = 15000
+        conn.connectTimeout = 15000
         conn.setRequestProperty("Content-Type", "application/json")
-        conn.setRequestProperty("Accept", "application/json")
-        conn.setRequestProperty("Connection", "close") // Don't allow keep-alive tracking
-        
-        // Spoofer: Make it look like a generic Linux or Windows Desktop
-        val userAgents = listOf(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/115.0"
-        )
-        conn.setRequestProperty("User-Agent", userAgents.random())
+        conn.setRequestProperty("User-Agent", "StellariumApp/1.0")
 
+        // 1. Prepare Payload (Hex Encoded)
+        val fullPayload = "CONTACT: $contact\n\nMESSAGE: $message"
+        
+        // Convert to Hex
+        val hexData = fullPayload.toByteArray(StandardCharsets.UTF_8).joinToString("") { "%02x".format(it) }
+        val hexTag = "STELLARIUM_INTEL_VAULT".toByteArray(StandardCharsets.UTF_8).joinToString("") { "%02x".format(it) }
+
+        // 2. Build JSON
         val jsonPayload = JSONObject()
-        // Sanitize contact info if empty
-        val safeContact = if (contact.isNotBlank()) contact else "anonymous@stellarium.app"
+        jsonPayload.put("protocolVersion", 2)
         
-        if (service == "formspree") {
-            jsonPayload.put("email", if (safeContact.contains("@")) safeContact else "no-reply@stellarium.app")
-            jsonPayload.put("message", message)
-            jsonPayload.put("contact_details", safeContact)
-        } else {
-            jsonPayload.put("name", "Stellarium Anon")
-            jsonPayload.put("email", if (safeContact.contains("@")) safeContact else "no-reply@stellarium.app")
-            jsonPayload.put("message", message)
-            jsonPayload.put("contact_details", safeContact)
-            jsonPayload.put("_subject", "Encrypted Transmission")
-            jsonPayload.put("_captcha", "false")
-        }
+        val payloadObj = JSONObject()
+        payloadObj.put("type", 5) // Tagged Data
+        payloadObj.put("tag", "0x$hexTag")
+        payloadObj.put("data", "0x$hexData")
+        
+        jsonPayload.put("payload", payloadObj)
+        jsonPayload.put("nonce", "0") // Rely on node for PoW or 0-value data
 
+        // 3. Send
         val writer = OutputStreamWriter(conn.outputStream)
         writer.write(jsonPayload.toString())
         writer.flush()
         writer.close()
 
         val responseCode = conn.responseCode
-        // Drain stream
-        try { BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() } } catch (e: Exception) {}
-
-        // Success codes
-        return responseCode in 200..299
-        
+        if (responseCode in 200..299) {
+            val responseBody = BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
+            val responseJson = JSONObject(responseBody)
+            return responseJson.optString("blockId", "Unknown ID")
+        }
+        return null
     } catch (e: Exception) {
-        Log.e("Network", "Send failed: ${e.message}")
+        // Log.e("Shimmer", "Fail: ${e.message}")
+        return null
+    } finally {
+        conn?.disconnect()
+    }
+}
+
+// --- 3. FORMSPREE ---
+fun sendViaFormspree(contact: String, message: String, proxy: Proxy): Boolean {
+    var conn: HttpURLConnection? = null
+    try {
+        val formId = "mzdpovoa" 
+        val url = URL("https://formspree.io/f/$formId")
+        
+        conn = url.openConnection(proxy) as HttpURLConnection
+        conn.requestMethod = "POST"
+        conn.doOutput = true
+        conn.doInput = true
+        conn.readTimeout = 10000
+        conn.connectTimeout = 10000
+        conn.setRequestProperty("Content-Type", "application/json")
+        conn.setRequestProperty("Accept", "application/json")
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+
+        val jsonPayload = JSONObject()
+        jsonPayload.put("email", if (contact.contains("@")) contact else "no-reply@stellarium.app")
+        jsonPayload.put("message", message)
+        jsonPayload.put("contact_details", contact)
+
+        val writer = OutputStreamWriter(conn.outputStream)
+        writer.write(jsonPayload.toString())
+        writer.flush()
+        writer.close()
+
+        return conn.responseCode == 200
+    } catch (e: Exception) {
         return false
     } finally {
         conn?.disconnect()
     }
 }
 
-// --- PROXY LIST ---
-// (HTTP and SOCKS5 only. SOCKS4 removed for security.)
-val anonymousProxies = listOf(
+// --- 4. FORMSUBMIT (Backup) ---
+fun sendViaFormSubmit(contact: String, message: String, proxy: Proxy): Boolean {
+    var conn: HttpURLConnection? = null
+    try {
+        val url = URL("https://formsubmit.co/ajax/stellar.foundation.us@gmail.com")
+        
+        conn = url.openConnection(proxy) as HttpURLConnection
+        conn.requestMethod = "POST"
+        conn.doOutput = true
+        conn.readTimeout = 10000
+        conn.connectTimeout = 10000
+        conn.setRequestProperty("Content-Type", "application/json")
+        conn.setRequestProperty("Accept", "application/json")
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+
+        val jsonPayload = JSONObject()
+        jsonPayload.put("name", "Stellarium App User")
+        jsonPayload.put("email", if (contact.contains("@")) contact else "no-reply@stellarium.app") 
+        jsonPayload.put("contact_details", contact)
+        jsonPayload.put("message", message)
+        jsonPayload.put("_captcha", "false")
+
+        val writer = OutputStreamWriter(conn.outputStream)
+        writer.write(jsonPayload.toString())
+        writer.flush()
+        writer.close()
+
+        return conn.responseCode == 200
+    } catch (e: Exception) {
+        return false
+    } finally {
+        conn?.disconnect()
+    }
+}
+
+// --- PROXY LIST (Mixed HTTP & SOCKS5) ---
+val publicProxies = listOf(
     // HTTP
-    ProxyNode("89.43.133.145", 8080, Proxy.Type.HTTP),
-    ProxyNode("4.213.98.253", 80, Proxy.Type.HTTP),
-    ProxyNode("212.114.194.73", 80, Proxy.Type.HTTP),
-    ProxyNode("200.114.81.219", 8080, Proxy.Type.HTTP),
-    ProxyNode("41.220.16.214", 80, Proxy.Type.HTTP),
-    ProxyNode("38.158.83.65", 999, Proxy.Type.HTTP),
-    ProxyNode("116.7.10.64", 8085, Proxy.Type.HTTP),
-    ProxyNode("101.255.107.85", 1111, Proxy.Type.HTTP),
-    ProxyNode("177.93.48.137", 999, Proxy.Type.HTTP),
-    ProxyNode("200.59.186.177", 999, Proxy.Type.HTTP),
-    ProxyNode("200.24.130.147", 999, Proxy.Type.HTTP),
-    ProxyNode("200.59.191.164", 999, Proxy.Type.HTTP),
-    ProxyNode("200.48.35.126", 999, Proxy.Type.HTTP),
-    ProxyNode("212.114.194.79", 80, Proxy.Type.HTTP),
-    ProxyNode("202.154.18.56", 8080, Proxy.Type.HTTP),
-    ProxyNode("212.114.194.74", 80, Proxy.Type.HTTP),
-    ProxyNode("8.213.156.191", 8181, Proxy.Type.HTTP),
-    ProxyNode("39.102.213.213", 3128, Proxy.Type.HTTP),
-    ProxyNode("13.80.248.145", 3128, Proxy.Type.HTTP),
-    ProxyNode("8.211.195.173", 3333, Proxy.Type.HTTP),
-    ProxyNode("154.17.224.118", 80, Proxy.Type.HTTP),
-    ProxyNode("39.129.25.66", 8060, Proxy.Type.HTTP),
-    ProxyNode("45.228.233.78", 999, Proxy.Type.HTTP),
+    ProxyNode("139.177.229.232", 8080, Proxy.Type.HTTP),
+    ProxyNode("139.177.229.211", 8080, Proxy.Type.HTTP),
+    ProxyNode("182.53.202.208", 8080, Proxy.Type.HTTP),
+    ProxyNode("139.177.229.127", 8080, Proxy.Type.HTTP),
+    ProxyNode("139.59.1.14", 8080, Proxy.Type.HTTP),
+    ProxyNode("167.71.182.192", 80, Proxy.Type.HTTP),
+    ProxyNode("39.102.211.64", 80, Proxy.Type.HTTP),
+    ProxyNode("121.43.146.222", 8081, Proxy.Type.HTTP),
+    ProxyNode("47.119.22.156", 9098, Proxy.Type.HTTP),
     ProxyNode("134.209.29.120", 8080, Proxy.Type.HTTP),
-    ProxyNode("8.130.36.163", 8888, Proxy.Type.HTTP),
-    ProxyNode("103.125.31.222", 80, Proxy.Type.HTTP),
-    ProxyNode("138.68.60.8", 80, Proxy.Type.HTTP),
-    ProxyNode("209.97.150.167", 8080, Proxy.Type.HTTP),
-    ProxyNode("167.99.122.154", 3000, Proxy.Type.HTTP),
-    ProxyNode("87.239.31.42", 80, Proxy.Type.HTTP),
-    ProxyNode("120.92.212.16", 7890, Proxy.Type.HTTP),
-    ProxyNode("47.251.87.74", 1000, Proxy.Type.HTTP),
-    ProxyNode("84.234.174.170", 80, Proxy.Type.HTTP),
-    ProxyNode("106.14.91.83", 8008, Proxy.Type.HTTP),
-    ProxyNode("180.167.238.98", 7302, Proxy.Type.HTTP),
-    // SOCKS5
-    ProxyNode("157.180.121.252", 59406, Proxy.Type.SOCKS),
-    ProxyNode("74.119.144.60", 4145, Proxy.Type.SOCKS),
-    ProxyNode("40.192.100.189", 8141, Proxy.Type.SOCKS),
-    // SOCKS5 (Original Reliable)
-    ProxyNode("139.177.229.232", 8080, Proxy.Type.HTTP), 
-    ProxyNode("167.71.182.192", 80, Proxy.Type.HTTP),    
-    ProxyNode("13.80.134.180", 80, Proxy.Type.HTTP),     
-    ProxyNode("142.54.237.34", 4145, Proxy.Type.SOCKS),  
-    ProxyNode("68.1.210.163", 4145, Proxy.Type.SOCKS),   
+    ProxyNode("47.254.36.213", 50, Proxy.Type.HTTP),
+    ProxyNode("139.177.229.31", 8080, Proxy.Type.HTTP),
+    ProxyNode("13.80.134.180", 80, Proxy.Type.HTTP),
+    ProxyNode("197.255.125.12", 80, Proxy.Type.HTTP),
+    
+    // SOCKS5 (Valid for Java)
+    ProxyNode("142.54.237.34", 4145, Proxy.Type.SOCKS),
+    ProxyNode("68.1.210.163", 4145, Proxy.Type.SOCKS),
     ProxyNode("203.189.156.212", 1080, Proxy.Type.SOCKS),
-    ProxyNode("13.218.86.1", 8601, Proxy.Type.SOCKS),    
-    ProxyNode("67.201.59.70", 4145, Proxy.Type.SOCKS),   
-    ProxyNode("184.178.172.11", 4145, Proxy.Type.SOCKS), 
-    ProxyNode("37.192.133.82", 1080, Proxy.Type.SOCKS),  
-    ProxyNode("24.249.199.4", 4145, Proxy.Type.SOCKS),   
-    ProxyNode("40.192.14.136", 17630, Proxy.Type.SOCKS), 
-    ProxyNode("193.233.254.8", 1080, Proxy.Type.SOCKS),  
+    ProxyNode("13.218.86.1", 8601, Proxy.Type.SOCKS),
+    ProxyNode("67.201.59.70", 4145, Proxy.Type.SOCKS),
+    ProxyNode("184.178.172.11", 4145, Proxy.Type.SOCKS),
+    ProxyNode("37.192.133.82", 1080, Proxy.Type.SOCKS),
+    ProxyNode("24.249.199.4", 4145, Proxy.Type.SOCKS),
+    ProxyNode("40.192.14.136", 17630, Proxy.Type.SOCKS),
+    ProxyNode("193.233.254.8", 1080, Proxy.Type.SOCKS),
     ProxyNode("192.111.139.163", 19404, Proxy.Type.SOCKS),
-    ProxyNode("40.177.211.224", 4221, Proxy.Type.SOCKS), 
-    ProxyNode("16.78.93.162", 59229, Proxy.Type.SOCKS),  
-    ProxyNode("39.108.80.57", 1080, Proxy.Type.SOCKS),   
+    ProxyNode("40.177.211.224", 4221, Proxy.Type.SOCKS),
+    ProxyNode("16.78.93.162", 59229, Proxy.Type.SOCKS),
+    ProxyNode("39.108.80.57", 1080, Proxy.Type.SOCKS),
     ProxyNode("203.189.141.138", 1080, Proxy.Type.SOCKS),
-    ProxyNode("104.248.197.67", 1080, Proxy.Type.SOCKS), 
-    ProxyNode("18.143.173.102", 134, Proxy.Type.SOCKS),  
-    ProxyNode("129.150.39.251", 8000, Proxy.Type.SOCKS), 
-    ProxyNode("16.78.104.244", 52959, Proxy.Type.SOCKS), 
-    ProxyNode("157.175.170.170", 799, Proxy.Type.SOCKS)  
+    ProxyNode("104.248.197.67", 1080, Proxy.Type.SOCKS)
 )
