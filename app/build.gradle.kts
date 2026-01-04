@@ -119,10 +119,10 @@ dependencies {
     // R8 will strip the unused icons perfectly
     implementation("androidx.compose.material:material-icons-extended") 
     
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:okhttp:5.3.2")
     
     // Bouncy Castle for Cryptography (Schnorr Signing)
-    implementation("org.bouncycastle:bcprov-jdk18on:1.77") 
+    implementation("org.bouncycastle:bcprov-jdk18on:1.83") 
     
 }
 
