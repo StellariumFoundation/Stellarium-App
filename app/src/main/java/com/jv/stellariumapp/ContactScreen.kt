@@ -1,5 +1,9 @@
 package com.jv.stellariumapp
 
+import android.content.Intent
+import android.net.Uri
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -12,10 +16,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import android.widget.Toast
-import android.content.Intent
-import android.net.Uri
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -27,32 +27,107 @@ import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.InetSocketAddress
 import java.net.Proxy
+import java.net.Socket
 import java.net.URL
 import java.nio.charset.StandardCharsets
 
+// --- DATA STRUCTURES ---
+data class ProxyNode(val ip: String, val port: Int, val type: Proxy.Type)
+
 @Composable
 fun ContactScreen() {
+    // UI State
     var contact by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
     var isSending by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("") }
     
-    // Toggles
-    var useProxy by remember { mutableStateOf(true) } 
-    var sendToNostr by remember { mutableStateOf(true) } // Nostr instead of IOTA
-    
+    // Dialog State
+    var showOrbotDialog by remember { mutableStateOf(false) }
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
-    fun handleSuccess(channel: String) {
-        isSending = false
-        statusMessage = "Success via $channel."
-        Toast.makeText(context, "Message Sent ($channel)", Toast.LENGTH_LONG).show()
-        contact = ""
-        message = ""
+    // --- LOGIC: START TRANSMISSION ---
+    fun startTransmission(useTor: Boolean) {
+        isSending = true
+        showOrbotDialog = false
+        
+        scope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) { 
+                statusMessage = if (useTor) "Routing via Tor Network..." else "Routing via Public Proxy Chain..." 
+            }
+
+            // 1. Configure the Proxy Strategy
+            val proxyStrategy = if (useTor) {
+                // Fixed Tor Proxy
+                listOf(ProxyNode("127.0.0.1", 9050, Proxy.Type.SOCKS))
+            } else {
+                // Public Proxy Rotation (Shuffle for anonymity)
+                publicProxies.shuffled()
+            }
+
+            // 2. Broadcast to Nostr (Priority)
+            var nostrSuccess = false
+            
+            // Try to broadcast using the proxy strategy
+            for (node in proxyStrategy) {
+                val proxy = Proxy(node.type, InetSocketAddress.createUnresolved(node.ip, node.port))
+                if (NostrService.publishMessageWithProxy(contact, message, proxy)) {
+                    nostrSuccess = true
+                    break // Stop rotating once successful
+                }
+            }
+
+            withContext(Dispatchers.Main) {
+                if (nostrSuccess) statusMessage = "Nostr Broadcast Confirmed. Sending Email..."
+            }
+
+            // 3. Send Email (Formspree -> FormSubmit Fallback)
+            var emailSuccess = false
+            
+            // Try Formspree first with rotation
+            for (node in proxyStrategy) {
+                val proxy = Proxy(node.type, InetSocketAddress.createUnresolved(node.ip, node.port))
+                if (sendViaFormspree(contact, message, proxy)) {
+                    emailSuccess = true
+                    break
+                }
+            }
+
+            // If Formspree failed, try FormSubmit
+            if (!emailSuccess) {
+                for (node in proxyStrategy) {
+                    val proxy = Proxy(node.type, InetSocketAddress.createUnresolved(node.ip, node.port))
+                    if (sendViaFormSubmit(contact, message, proxy)) {
+                        emailSuccess = true
+                        break
+                    }
+                }
+            }
+
+            // 4. Final Status Update
+            withContext(Dispatchers.Main) {
+                isSending = false
+                if (nostrSuccess || emailSuccess) {
+                    val status = StringBuilder("Transmission Complete.")
+                    if (nostrSuccess) status.append("\nImmutable on Nostr.")
+                    if (emailSuccess) status.append("\nEmail Sent.")
+                    
+                    statusMessage = status.toString()
+                    Toast.makeText(context, "Secure Transmission Complete", Toast.LENGTH_LONG).show()
+                    contact = ""
+                    message = ""
+                } else {
+                    statusMessage = "All secure channels failed."
+                    Toast.makeText(context, "Connection Failed. Try installing Orbot.", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
+    // --- UI LAYOUT ---
     Column(
         modifier = Modifier
             .padding(24.dp)
@@ -70,7 +145,7 @@ fun ContactScreen() {
         Spacer(modifier = Modifier.height(8.dp))
         
         Text(
-            text = "Send Intelligence. Routes via Nostr Relays (Uncensorable) & Encrypted Email.",
+            text = "Send Intelligence or Directives to the Stellarium Foundation.\n(Routes via Nostr & Encrypted Email)",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onBackground
@@ -109,84 +184,40 @@ fun ContactScreen() {
         
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Options Row
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = useProxy, onCheckedChange = { useProxy = it })
-                Text("Hide IP (Proxy Rotation)", style = MaterialTheme.typography.bodyMedium)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = sendToNostr, onCheckedChange = { sendToNostr = it })
-                Text("Broadcast to Nostr Network", style = MaterialTheme.typography.bodyMedium)
-            }
-        }
-
         if (statusMessage.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = statusMessage,
-                color = MaterialTheme.colorScheme.tertiary,
-                style = MaterialTheme.typography.labelMedium,
-                textAlign = TextAlign.Center
-            )
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = statusMessage,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(12.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-        
         Button(
             onClick = {
                 if (message.isNotBlank()) {
-                    isSending = true
-                    statusMessage = "Initiating Sequence..."
-                    
-                    scope.launch {
-                        // 1. NOSTR BROADCAST (Priority)
-                        if (sendToNostr) {
-                            val nostrSuccess = retryWithProxies(contact, message, useProxy, "nostr") { msg ->
-                                withContext(Dispatchers.Main) { statusMessage = msg }
-                            }
-                            if (nostrSuccess) {
-                                withContext(Dispatchers.Main) { handleSuccess("Nostr Network") }
-                                // We continue to email for redundancy
-                            }
-                        }
-
-                        // 2. EMAIL CHANNEL (Formspree)
-                        val formspreeSuccess = retryWithProxies(contact, message, useProxy, "formspree") { msg ->
-                            withContext(Dispatchers.Main) { statusMessage = msg }
-                        }
-
-                        if (formspreeSuccess) {
-                            withContext(Dispatchers.Main) { handleSuccess("Secure Email") }
-                        } else {
-                            // 3. FALLBACK (FormSubmit)
-                            val formSubmitSuccess = retryWithProxies(contact, message, useProxy, "formsubmit") { msg ->
-                                withContext(Dispatchers.Main) { statusMessage = msg }
-                            }
-                            
-                            if (formSubmitSuccess) {
-                                withContext(Dispatchers.Main) { handleSuccess("Backup Email") }
+                    // Step 1: Check if Orbot (Tor) is running
+                    scope.launch(Dispatchers.IO) {
+                        val isTorAvailable = checkOrbotConnection()
+                        withContext(Dispatchers.Main) {
+                            if (isTorAvailable) {
+                                // Tor is running, start immediately
+                                startTransmission(useTor = true)
                             } else {
-                                // 4. OFFLINE FALLBACK
-                                withContext(Dispatchers.Main) {
-                                    isSending = false
-                                    statusMessage = "Network Unreachable."
-                                    val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                        data = Uri.parse("mailto:stellar.foundation.us@gmail.com")
-                                        putExtra(Intent.EXTRA_SUBJECT, "Stellarium Intel")
-                                        putExtra(Intent.EXTRA_TEXT, "Contact: $contact\n\n$message")
-                                    }
-                                    try {
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "No email client found.", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
+                                // Tor not found, show dialog
+                                showOrbotDialog = true
                             }
                         }
                     }
                 } else {
-                    Toast.makeText(context, "Intel required.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Message content is required.", Toast.LENGTH_SHORT).show()
                 }
             },
             enabled = !isSending,
@@ -199,19 +230,134 @@ fun ContactScreen() {
                     strokeWidth = 2.dp
                 )
                 Spacer(modifier = Modifier.width(12.dp))
-                Text("Transmitting...")
+                Text("Anonymizing...")
             } else {
-                Text("Broadcast")
+                Text("Broadcast Securely")
             }
         }
     }
+
+    // --- DIALOG: TOR MISSING ---
+    if (showOrbotDialog) {
+        AlertDialog(
+            onDismissRequest = { showOrbotDialog = false },
+            title = { Text("Tor Network Not Detected") },
+            text = { 
+                Text("For maximum security, we recommend installing Orbot to route traffic through the Tor network.\n\nWithout Orbot, we will use public proxies, which are less secure.") 
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://orbot.app/"))
+                        context.startActivity(intent)
+                        showOrbotDialog = false
+                    }
+                ) {
+                    Text("Install Orbot")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        // User chose to fallback to public proxies
+                        startTransmission(useTor = false)
+                    }
+                ) {
+                    Text("Use Public Proxies")
+                }
+            }
+        )
+    }
 }
 
-// --- PROXY DATA ---
-data class ProxyNode(val ip: String, val port: Int, val type: Proxy.Type)
+// =========================================================================
+// ====================     NETWORKING LAYER     ===========================
+// =========================================================================
 
-val anonymousProxies = listOf(
-    // HTTP Proxies
+// --- 1. TOR CHECKER ---
+fun checkOrbotConnection(): Boolean {
+    return try {
+        val socket = Socket()
+        socket.connect(InetSocketAddress("127.0.0.1", 9050), 500)
+        socket.close()
+        true
+    } catch (e: Exception) {
+        false
+    }
+}
+
+// --- 2. FORMSPREE ---
+fun sendViaFormspree(contact: String, message: String, proxy: Proxy): Boolean {
+    var conn: HttpURLConnection? = null
+    try {
+        val formId = "mzdpovoa" 
+        val url = URL("https://formspree.io/f/$formId")
+        
+        conn = url.openConnection(proxy) as HttpURLConnection
+        conn.requestMethod = "POST"
+        conn.doOutput = true
+        conn.readTimeout = 10000
+        conn.connectTimeout = 10000
+        conn.setRequestProperty("Content-Type", "application/json")
+        conn.setRequestProperty("Accept", "application/json")
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+
+        val jsonPayload = JSONObject()
+        jsonPayload.put("email", if (contact.contains("@")) contact else "no-reply@stellarium.app")
+        jsonPayload.put("message", message)
+        jsonPayload.put("contact_details", contact)
+
+        val writer = OutputStreamWriter(conn.outputStream)
+        writer.write(jsonPayload.toString())
+        writer.flush()
+        writer.close()
+
+        return conn.responseCode == 200
+    } catch (e: Exception) {
+        return false
+    } finally {
+        conn?.disconnect()
+    }
+}
+
+// --- 3. FORMSUBMIT (Backup) ---
+fun sendViaFormSubmit(contact: String, message: String, proxy: Proxy): Boolean {
+    var conn: HttpURLConnection? = null
+    try {
+        val url = URL("https://formsubmit.co/ajax/stellar.foundation.us@gmail.com")
+        
+        conn = url.openConnection(proxy) as HttpURLConnection
+        conn.requestMethod = "POST"
+        conn.doOutput = true
+        conn.readTimeout = 10000
+        conn.connectTimeout = 10000
+        conn.setRequestProperty("Content-Type", "application/json")
+        conn.setRequestProperty("Accept", "application/json")
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+
+        val jsonPayload = JSONObject()
+        jsonPayload.put("name", "Stellarium App User")
+        jsonPayload.put("email", if (contact.contains("@")) contact else "no-reply@stellarium.app") 
+        jsonPayload.put("contact_details", contact)
+        jsonPayload.put("message", message)
+        jsonPayload.put("_captcha", "false")
+
+        val writer = OutputStreamWriter(conn.outputStream)
+        writer.write(jsonPayload.toString())
+        writer.flush()
+        writer.close()
+
+        return conn.responseCode == 200
+    } catch (e: Exception) {
+        return false
+    } finally {
+        conn?.disconnect()
+    }
+}
+
+// --- PROXY LIST (Mixed HTTP & SOCKS5) ---
+val publicProxies = listOf(
+    // HTTP
     ProxyNode("139.177.229.232", 8080, Proxy.Type.HTTP),
     ProxyNode("139.177.229.211", 8080, Proxy.Type.HTTP),
     ProxyNode("182.53.202.208", 8080, Proxy.Type.HTTP),
@@ -226,9 +372,8 @@ val anonymousProxies = listOf(
     ProxyNode("139.177.229.31", 8080, Proxy.Type.HTTP),
     ProxyNode("13.80.134.180", 80, Proxy.Type.HTTP),
     ProxyNode("197.255.125.12", 80, Proxy.Type.HTTP),
-    ProxyNode("183.215.23.242", 9091, Proxy.Type.HTTP),
-
-    // SOCKS5 Proxies
+    
+    // SOCKS5 (Valid for Java)
     ProxyNode("142.54.237.34", 4145, Proxy.Type.SOCKS),
     ProxyNode("68.1.210.163", 4145, Proxy.Type.SOCKS),
     ProxyNode("203.189.156.212", 1080, Proxy.Type.SOCKS),
@@ -244,126 +389,5 @@ val anonymousProxies = listOf(
     ProxyNode("16.78.93.162", 59229, Proxy.Type.SOCKS),
     ProxyNode("39.108.80.57", 1080, Proxy.Type.SOCKS),
     ProxyNode("203.189.141.138", 1080, Proxy.Type.SOCKS),
-    ProxyNode("104.248.197.67", 1080, Proxy.Type.SOCKS),
-    ProxyNode("18.143.173.102", 134, Proxy.Type.SOCKS),
-    ProxyNode("129.150.39.251", 8000, Proxy.Type.SOCKS),
-    ProxyNode("16.78.104.244", 52959, Proxy.Type.SOCKS),
-    ProxyNode("157.175.170.170", 799, Proxy.Type.SOCKS)
+    ProxyNode("104.248.197.67", 1080, Proxy.Type.SOCKS)
 )
-
-// --- PROXY ROTATOR ENGINE ---
-
-suspend fun retryWithProxies(
-    contact: String, 
-    message: String, 
-    useProxy: Boolean, 
-    service: String,
-    updateStatus: suspend (String) -> Unit
-): Boolean {
-    return withContext(Dispatchers.IO) {
-        if (!useProxy) return@withContext executeService(service, contact, message, Proxy.NO_PROXY)
-
-        val shuffledProxies = anonymousProxies.shuffled()
-        var attempt = 1
-        
-        for (node in shuffledProxies) {
-            updateStatus("Routing via Node $attempt/${shuffledProxies.size} (${node.ip})...")
-            try {
-                val socketAddress = InetSocketAddress.createUnresolved(node.ip, node.port)
-                val proxy = Proxy(node.type, socketAddress)
-                
-                // For Nostr, we must pass the proxy to the NostrService.publishMessage
-                // For simplicity, we use a global variable or modify the service
-                // But here, we handle it inside executeService by passing the proxy object
-                if (executeService(service, contact, message, proxy)) return@withContext true
-            } catch(e: Exception) {}
-            attempt++
-        }
-        return@withContext false
-    }
-}
-
-fun executeService(service: String, contact: String, message: String, proxy: Proxy): Boolean {
-    return when (service) {
-        "nostr" -> sendViaNostrProtocol(contact, message, proxy) // NEW FUNCTION
-        "formspree" -> sendViaFormspree(contact, message, proxy)
-        "formsubmit" -> sendViaFormSubmit(contact, message, proxy)
-        else -> false
-    }
-}
-
-// --- 1. NOSTR PROTOCOL (With Proxy Support) ---
-fun sendViaNostrProtocol(contact: String, message: String, proxy: Proxy): Boolean {
-    // We call the NostrService here, but we need to tell it to use the proxy
-    // Since NostrService is an Object, we can add a method to it that accepts a proxy
-    // OR we can define the broadcasting logic right here for simplicity within the rotation loop.
-    
-    // See implementation below in NostrService.kt update
-    return NostrService.publishMessageWithProxy(contact, message, proxy)
-}
-
-// --- 2. FORMSPREE ---
-fun sendViaFormspree(contact: String, message: String, proxy: Proxy): Boolean {
-    var conn: HttpURLConnection? = null
-    try {
-        val formId = "mzdpovoa" 
-        val url = URL("https://formspree.io/f/$formId")
-        
-        conn = url.openConnection(proxy) as HttpURLConnection
-        conn.requestMethod = "POST"
-        conn.doOutput = true
-        conn.readTimeout = 8000
-        conn.connectTimeout = 8000
-        conn.setRequestProperty("Content-Type", "application/json")
-        conn.setRequestProperty("Accept", "application/json")
-        
-        val jsonPayload = JSONObject()
-        jsonPayload.put("email", if (contact.contains("@")) contact else "anon@stellarium.app")
-        jsonPayload.put("message", message)
-        jsonPayload.put("contact_details", contact)
-
-        val writer = OutputStreamWriter(conn.outputStream)
-        writer.write(jsonPayload.toString())
-        writer.flush()
-        writer.close()
-
-        return conn.responseCode in 200..299
-    } catch (e: Exception) {
-        return false
-    } finally {
-        conn?.disconnect()
-    }
-}
-
-// --- 3. FORMSUBMIT ---
-fun sendViaFormSubmit(contact: String, message: String, proxy: Proxy): Boolean {
-    var conn: HttpURLConnection? = null
-    try {
-        val url = URL("https://formsubmit.co/ajax/stellar.foundation.us@gmail.com")
-        conn = url.openConnection(proxy) as HttpURLConnection
-        conn.requestMethod = "POST"
-        conn.doOutput = true
-        conn.readTimeout = 8000
-        conn.connectTimeout = 8000
-        conn.setRequestProperty("Content-Type", "application/json")
-        conn.setRequestProperty("Accept", "application/json")
-
-        val jsonPayload = JSONObject()
-        jsonPayload.put("name", "Stellarium App User")
-        jsonPayload.put("email", if (contact.contains("@")) contact else "no-reply@stellarium.app") 
-        jsonPayload.put("message", message)
-        jsonPayload.put("_captcha", "false")
-        jsonPayload.put("_cc", "john.victor.the.one@gmail.com")
-
-        val writer = OutputStreamWriter(conn.outputStream)
-        writer.write(jsonPayload.toString())
-        writer.flush()
-        writer.close()
-
-        return conn.responseCode == 200
-    } catch (e: Exception) {
-        return false
-    } finally {
-        conn?.disconnect()
-    }
-}
