@@ -13,7 +13,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = 1
-        versionName = "1.5.2"
+        versionName = "1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -115,13 +115,15 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.activity:activity-compose:1.8.2")
     implementation("androidx.navigation:navigation-compose:2.7.7")
-    implementation("org.iota:iota-sdk-java:1.0.0-rc.1") // Or latest version
-    
-    // Required for networking inside the SDK
-    implementation("net.java.dev.jna:jna:5.13.0") 
     
     // R8 will strip the unused icons perfectly
     implementation("androidx.compose.material:material-icons-extended") 
+    
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    
+    // Bouncy Castle for Cryptography (Schnorr Signing)
+    implementation("org.bouncycastle:bcprov-jdk18on:1.77") 
+    
 }
 
 
