@@ -9,11 +9,11 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okhttp3.Response
 import org.bouncycastle.crypto.digests.SHA256Digest
+import org.bouncycastle.crypto.ec.CustomNamedCurves
 import org.bouncycastle.crypto.params.ECDomainParameters
 import org.bouncycastle.crypto.params.ECPrivateKeyParameters
 import org.bouncycastle.crypto.signers.ECDSASigner
 import org.bouncycastle.crypto.signers.HMacDSAKCalculator
-import org.bouncycastle.math.ec.custom.sec.SecP256K1Curve
 import org.json.JSONArray
 import org.json.JSONObject
 import java.math.BigInteger
@@ -115,11 +115,10 @@ object NostrService {
 
     // --- CRYPTO UTILS ---
     
-    // Initialize Curve and Domain Parameters correctly
-    private val curve = SecP256K1Curve()
-    private val domain = ECDomainParameters(curve, curve.g, curve.n, curve.h)
-    private val n = domain.n // Use domain.n instead of curve.n directly if needed
-
+    // FIX: Retrieve parameters from the Named Curve registry instead of raw instantiation
+    private val ecParams = CustomNamedCurves.getByName("secp256k1")
+    private val domain = ECDomainParameters(ecParams.curve, ecParams.g, ecParams.n, ecParams.h)
+    
     private fun generatePrivateKey(): String {
         val bytes = ByteArray(32)
         SecureRandom().nextBytes(bytes)
@@ -128,9 +127,9 @@ object NostrService {
 
     private fun getPublicKey(privateKeyHex: String): String {
         val privKeyBigInt = BigInteger(1, privateKeyHex.hexToBytes())
-        // Use domain.g to get the generator point
+        // Use the Generator (G) from the parameters
         val point = domain.g.multiply(privKeyBigInt).normalize()
-        // Access X coord via affineXCoord
+        // Use affineXCoord to get the X coordinate
         return point.affineXCoord.encoded.toHex()
     }
 
