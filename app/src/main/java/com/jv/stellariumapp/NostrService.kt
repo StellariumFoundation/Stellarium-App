@@ -10,13 +10,13 @@ import okhttp3.WebSocketListener
 import okhttp3.Response
 import org.bouncycastle.crypto.digests.SHA256Digest
 import org.bouncycastle.crypto.ec.CustomNamedCurves
-import org.bouncycastle.crypto.params.ECDomainParameters
-import org.json.JSONArray
-import org.json.JSONObject
 import java.math.BigInteger
 import java.net.Proxy
 import java.security.SecureRandom
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import org.json.JSONArray
+import org.json.JSONObject
 
 object NostrService {
 
@@ -32,32 +32,35 @@ object NostrService {
 
     fun publishMessageWithProxy(contact: String, message: String, proxy: Proxy): Boolean {
         try {
-            val privateKeyBytes = generatePrivateKey()
-            val publicKeyHex = getPublicKey(privateKeyBytes)
+            // 1. Keys
+            val privateKey = generateRandomKey()
+            val publicKey = getPublicKey(privateKey)
 
+            // 2. Content
             val content = "STELLARIUM INTEL\n---\nContact: $contact\n\n$message"
             val createdAt = System.currentTimeMillis() / 1000
 
+            // 3. Tags
             val tags = JSONArray()
-            val tTag = JSONArray().put("t").put("stellarium_intel")
-            val pTag = JSONArray().put("p").put(TARGET_PUBKEY_HEX)
-            tags.put(tTag)
-            tags.put(pTag)
+            tags.put(JSONArray().put("t").put("stellarium_intel"))
+            tags.put(JSONArray().put("p").put(TARGET_PUBKEY_HEX))
 
+            // 4. Serialize for ID (NIP-01)
             val rawData = JSONArray()
             rawData.put(0)
-            rawData.put(publicKeyHex)
+            rawData.put(publicKey)
             rawData.put(createdAt)
             rawData.put(1)
             rawData.put(tags)
             rawData.put(content)
 
             val idHex = sha256(rawData.toString())
-            val sigHex = signSchnorr(idHex, privateKeyBytes)
+            val sigHex = signSchnorr(idHex, privateKey)
 
+            // 5. Final Event JSON
             val event = JSONObject()
             event.put("id", idHex)
-            event.put("pubkey", publicKeyHex)
+            event.put("pubkey", publicKey)
             event.put("created_at", createdAt)
             event.put("kind", 1)
             event.put("tags", tags)
@@ -69,7 +72,8 @@ object NostrService {
             msg.put(event)
             val msgString = msg.toString()
 
-            var success = false
+            // 6. Broadcast & Wait for "OK"
+            var successCount = 0
             val client = OkHttpClient.Builder()
                 .proxy(proxy)
                 .readTimeout(10, TimeUnit.SECONDS)
@@ -78,23 +82,47 @@ object NostrService {
 
             for (url in RELAYS) {
                 try {
+                    val latch = CountDownLatch(1) // Wait for response
+                    var relayAccepted = false
+
                     val request = Request.Builder().url(url).build()
                     val listener = object : WebSocketListener() {
                         override fun onOpen(webSocket: WebSocket, response: Response) {
-                            Log.d("Nostr", "Sending to $url")
                             webSocket.send(msgString)
-                            Thread.sleep(2000) 
-                            webSocket.close(1000, "Done")
-                            success = true
+                            Log.d("Nostr", "Sent to $url")
+                        }
+
+                        override fun onMessage(webSocket: WebSocket, text: String) {
+                            // Listen for ["OK", "event_id", true, ...]
+                            if (text.contains("OK") && text.contains("true")) {
+                                Log.d("Nostr", "✅ ACCEPTED by $url")
+                                relayAccepted = true
+                                latch.countDown()
+                                webSocket.close(1000, "Done")
+                            } else if (text.contains("OK") && text.contains("false")) {
+                                Log.e("Nostr", "❌ REJECTED by $url: $text")
+                                latch.countDown() // Stop waiting
+                            }
+                        }
+                        
+                        override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                             latch.countDown()
                         }
                     }
+                    
                     client.newWebSocket(request, listener)
-                    Thread.sleep(2500) 
-                } catch (e: Exception) { 
-                    Log.e("Nostr", "Error connecting: ${e.message}")
+                    // Wait max 5 seconds for confirmation per relay
+                    latch.await(5, TimeUnit.SECONDS)
+                    
+                    if (relayAccepted) successCount++
+
+                } catch (e: Exception) {
+                    Log.e("Nostr", "Error $url: ${e.message}")
                 }
             }
-            return success
+
+            return successCount > 0
+
         } catch (e: Exception) {
             e.printStackTrace()
             return false
@@ -108,14 +136,14 @@ object NostrService {
     }
 
     // ==========================================
-    // === BIP-340 SCHNORR CRYPTOGRAPHY =========
+    // === BIP-340 CRYPTO (Strict Implementation)
     // ==========================================
 
     private val ecParams = CustomNamedCurves.getByName("secp256k1")
     private val curve = ecParams.curve
     private val n = ecParams.n
 
-    private fun generatePrivateKey(): ByteArray {
+    private fun generateRandomKey(): ByteArray {
         val bytes = ByteArray(32)
         SecureRandom().nextBytes(bytes)
         return bytes
@@ -135,7 +163,7 @@ object NostrService {
         digest.doFinal(result, 0)
         return result.toHex32()
     }
-
+    
     private fun sha256(input: ByteArray): ByteArray {
         val digest = SHA256Digest()
         digest.update(input, 0, input.size)
@@ -148,69 +176,69 @@ object NostrService {
         val msgBytes = msgHashHex.hexToBytes()
         val d = BigInteger(1, privateKey)
         
+        // 1. Aux Random
         val aux = ByteArray(32)
         SecureRandom().nextBytes(aux)
         
-        // k = Hash(d || aux || message)
-        // Concatenate arrays manually
-        val dBytes = d.toByteArray()
-        val kInput = ByteArray(dBytes.size + aux.size + msgBytes.size)
-        System.arraycopy(dBytes, 0, kInput, 0, dBytes.size)
-        System.arraycopy(aux, 0, kInput, dBytes.size, aux.size)
-        System.arraycopy(msgBytes, 0, kInput, dBytes.size + aux.size, msgBytes.size)
-
+        // 2. Nonce k
+        val dBytes = d.toByteArray().toThirtyTwoBytes()
+        val kInput = ByteArray(32 + 32 + 32)
+        System.arraycopy(dBytes, 0, kInput, 0, 32)
+        System.arraycopy(aux, 0, kInput, 32, 32)
+        System.arraycopy(msgBytes, 0, kInput, 64, 32)
+        
         var k = BigInteger(1, sha256(kInput)).mod(n)
-        
-        // R = k*G
+        if (k == BigInteger.ZERO) k = BigInteger.ONE // Safety
+
+        // 3. R Point
         var R = ecParams.g.multiply(k).normalize()
-        
-        // Enforce Even Y
         if (R.affineYCoord.toBigInteger().testBit(0)) {
             k = n.subtract(k)
             R = ecParams.g.multiply(k).normalize()
         }
         
-        val rX = R.affineXCoord.encoded
+        val rX = R.affineXCoord.encoded.toThirtyTwoBytes()
         val P = ecParams.g.multiply(d).normalize()
-        val pX = P.affineXCoord.encoded
+        val pX = P.affineXCoord.encoded.toThirtyTwoBytes()
         
-        // Challenge Hash
+        // 4. Challenge Hash e = Hash(rX || pX || msg)
         val challengeData = ByteArray(32 + 32 + 32)
-        // Use copyOfRange to handle padding safely if needed, or assume standard 32 bytes from BouncyCastle
-        val rX32 = rX.takeLastBytes(32)
-        val pX32 = pX.takeLastBytes(32)
-        
-        System.arraycopy(rX32, 0, challengeData, 0, 32)
-        System.arraycopy(pX32, 0, challengeData, 32, 32)
+        System.arraycopy(rX, 0, challengeData, 0, 32)
+        System.arraycopy(pX, 0, challengeData, 32, 32)
         System.arraycopy(msgBytes, 0, challengeData, 64, 32)
         
         val eBytes = sha256(challengeData)
         val e = BigInteger(1, eBytes).mod(n)
 
+        // 5. Signature s
         val s = k.add(e.multiply(d)).mod(n)
+        val sBytes = s.toByteArray().toThirtyTwoBytes()
 
-        return rX.toHex32() + s.toByteArray().toHex32()
+        // 6. Concat rX + s
+        val sigBytes = ByteArray(64)
+        System.arraycopy(rX, 0, sigBytes, 0, 32)
+        System.arraycopy(sBytes, 0, sigBytes, 32, 32)
+        
+        return sigBytes.toHex()
     }
 
-    // --- Helpers ---
+    // --- Extensions ---
     
-    private fun ByteArray.toHex32(): String {
-        val cleanBytes = if (this.size > 32 && this[0] == 0.toByte()) {
-            this.copyOfRange(1, this.size)
-        } else if (this.size < 32) {
-            val padded = ByteArray(32)
-            System.arraycopy(this, 0, padded, 32 - this.size, this.size)
-            padded
-        } else {
-            this
-        }
-        return cleanBytes.joinToString("") { "%02x".format(it) }
-    }
-    
+    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
+    private fun ByteArray.toHex32(): String = toThirtyTwoBytes().toHex()
+
     private fun String.hexToBytes(): ByteArray = chunked(2).map { it.toInt(16).toByte() }.toByteArray()
     
-    private fun ByteArray.takeLastBytes(n: Int): ByteArray {
-        if (this.size <= n) return this
-        return this.copyOfRange(this.size - n, this.size)
+    private fun ByteArray.toThirtyTwoBytes(): ByteArray {
+        if (this.size == 32) return this
+        val result = ByteArray(32)
+        if (this.size > 32) {
+            // If BigInt added a sign byte (00), strip it
+            System.arraycopy(this, this.size - 32, result, 0, 32)
+        } else {
+            // Pad with zeros if too short
+            System.arraycopy(this, 0, result, 32 - this.size, this.size)
+        }
+        return result
     }
 }
