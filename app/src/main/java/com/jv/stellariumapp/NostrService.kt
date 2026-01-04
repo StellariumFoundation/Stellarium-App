@@ -23,8 +23,7 @@ import java.util.concurrent.TimeUnit
 
 object NostrService {
 
-    // YOUR PUBLIC KEY (Decoded from npub1clw9t3l5mnxl84j94u0xrenyx0gf7nkt5dttlzfwcjvwznz6knjsxpwwgw)
-    // This hex tells relays "This message is relevant to John Victor"
+    // YOUR PUBLIC KEY (Hex)
     private const val TARGET_PUBKEY_HEX = "e6e8499252c8019688405021c5f3592c300845a7698583487f912239328246a4"
 
     private val RELAYS = listOf(
@@ -37,7 +36,7 @@ object NostrService {
 
     fun publishMessageWithProxy(contact: String, message: String, proxy: Proxy): Boolean {
         try {
-            // 1. Generate One-Time Identity (Anonymous Sender)
+            // 1. Generate One-Time Identity
             val privateKeyHex = generatePrivateKey()
             val publicKeyHex = getPublicKey(privateKeyHex)
 
@@ -45,28 +44,18 @@ object NostrService {
             val content = "STELLARIUM INTEL\n---\nContact: $contact\n\n$message"
             val createdAt = System.currentTimeMillis() / 1000
 
-            // 3. TAGS: IMPORTANT CHANGE HERE
             val tags = JSONArray()
-            
-            // Tag A: The Hashtag (for searching)
-            val tTag = JSONArray()
-            tTag.put("t")
-            tTag.put("stellarium_intel")
+            val tTag = JSONArray().put("t").put("stellarium_intel")
+            val pTag = JSONArray().put("p").put(TARGET_PUBKEY_HEX)
             tags.put(tTag)
-
-            // Tag B: YOUR PROFILE ('p' tag)
-            // This ensures the message appears in your Notifications tab
-            val pTag = JSONArray()
-            pTag.put("p")
-            pTag.put(TARGET_PUBKEY_HEX)
             tags.put(pTag)
 
-            // 4. Serialize & Sign
+            // 3. Serialize & Sign
             val rawData = JSONArray()
             rawData.put(0)
             rawData.put(publicKeyHex)
             rawData.put(createdAt)
-            rawData.put(1) // Kind 1 = Public Note (Mentions You)
+            rawData.put(1)
             rawData.put(tags)
             rawData.put(content)
 
@@ -87,7 +76,7 @@ object NostrService {
             msg.put(event)
             val msgString = msg.toString()
 
-            // 5. Broadcast using the specific Proxy
+            // 4. Broadcast
             var success = false
             val client = OkHttpClient.Builder()
                 .proxy(proxy) 
@@ -126,8 +115,10 @@ object NostrService {
 
     // --- CRYPTO UTILS ---
     
+    // Initialize Curve and Domain Parameters correctly
     private val curve = SecP256K1Curve()
     private val domain = ECDomainParameters(curve, curve.g, curve.n, curve.h)
+    private val n = domain.n // Use domain.n instead of curve.n directly if needed
 
     private fun generatePrivateKey(): String {
         val bytes = ByteArray(32)
@@ -137,7 +128,9 @@ object NostrService {
 
     private fun getPublicKey(privateKeyHex: String): String {
         val privKeyBigInt = BigInteger(1, privateKeyHex.hexToBytes())
-        val point = curve.g.multiply(privKeyBigInt).normalize()
+        // Use domain.g to get the generator point
+        val point = domain.g.multiply(privKeyBigInt).normalize()
+        // Access X coord via affineXCoord
         return point.affineXCoord.encoded.toHex()
     }
 
@@ -166,4 +159,15 @@ object NostrService {
 
     private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
     private fun String.hexToBytes(): ByteArray = chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+    
+    private fun ByteArray.toThirtyTwoBytes(): ByteArray {
+        if (this.size == 32) return this
+        if (this.size > 32 && this[0] == 0.toByte()) return this.copyOfRange(1, this.size)
+        if (this.size < 32) {
+            val padded = ByteArray(32)
+            System.arraycopy(this, 0, padded, 32 - this.size, this.size)
+            return padded
+        }
+        return this
+    }
 }
