@@ -11,7 +11,6 @@ import okhttp3.Response
 import org.bouncycastle.crypto.digests.SHA256Digest
 import org.bouncycastle.crypto.ec.CustomNamedCurves
 import org.bouncycastle.crypto.params.ECDomainParameters
-import org.bouncycastle.math.ec.ECPoint
 import org.json.JSONArray
 import org.json.JSONObject
 import java.math.BigInteger
@@ -21,10 +20,8 @@ import java.util.concurrent.TimeUnit
 
 object NostrService {
 
-    // YOUR PUBLIC KEY (Hex)
     private const val TARGET_PUBKEY_HEX = "e6e8499252c8019688405021c5f3592c300845a7698583487f912239328246a4"
 
-    // High-Traffic Relays
     private val RELAYS = listOf(
         "wss://relay.damus.io",
         "wss://relay.nostr.band",
@@ -35,35 +32,29 @@ object NostrService {
 
     fun publishMessageWithProxy(contact: String, message: String, proxy: Proxy): Boolean {
         try {
-            // 1. Generate One-Time Identity
             val privateKeyBytes = generatePrivateKey()
             val publicKeyHex = getPublicKey(privateKeyBytes)
 
-            // 2. Prepare Content
             val content = "STELLARIUM INTEL\n---\nContact: $contact\n\n$message"
             val createdAt = System.currentTimeMillis() / 1000
 
-            // 3. Tags
             val tags = JSONArray()
             val tTag = JSONArray().put("t").put("stellarium_intel")
             val pTag = JSONArray().put("p").put(TARGET_PUBKEY_HEX)
             tags.put(tTag)
             tags.put(pTag)
 
-            // 4. Serialize for ID (NIP-01)
             val rawData = JSONArray()
             rawData.put(0)
             rawData.put(publicKeyHex)
             rawData.put(createdAt)
-            rawData.put(1) // Kind 1
+            rawData.put(1)
             rawData.put(tags)
             rawData.put(content)
 
-            // 5. ID & Signature (BIP-340 SCHNORR)
             val idHex = sha256(rawData.toString())
             val sigHex = signSchnorr(idHex, privateKeyBytes)
 
-            // 6. Build Event
             val event = JSONObject()
             event.put("id", idHex)
             event.put("pubkey", publicKeyHex)
@@ -78,7 +69,6 @@ object NostrService {
             msg.put(event)
             val msgString = msg.toString()
 
-            // 7. Broadcast with Delay to ensure flush
             var success = false
             val client = OkHttpClient.Builder()
                 .proxy(proxy)
@@ -91,29 +81,21 @@ object NostrService {
                     val request = Request.Builder().url(url).build()
                     val listener = object : WebSocketListener() {
                         override fun onOpen(webSocket: WebSocket, response: Response) {
-                            Log.d("Nostr", "Sending to $url via ${proxy.address()}")
+                            Log.d("Nostr", "Sending to $url")
                             webSocket.send(msgString)
-                            // Do NOT close immediately. Wait for transmission.
                             Thread.sleep(2000) 
                             webSocket.close(1000, "Done")
                             success = true
                         }
-                        override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                            Log.e("Nostr", "Failed $url: ${t.message}")
-                        }
                     }
                     client.newWebSocket(request, listener)
-                    // Blocking wait to allow the socket thread to work
                     Thread.sleep(2500) 
                 } catch (e: Exception) { 
                     Log.e("Nostr", "Error connecting: ${e.message}")
                 }
             }
-            
             return success
-
         } catch (e: Exception) {
-            Log.e("Nostr", "Fatal Error: ${e.message}")
             e.printStackTrace()
             return false
         }
@@ -132,7 +114,6 @@ object NostrService {
     private val ecParams = CustomNamedCurves.getByName("secp256k1")
     private val curve = ecParams.curve
     private val n = ecParams.n
-    private val p = curve.field.characteristic
 
     private fun generatePrivateKey(): ByteArray {
         val bytes = ByteArray(32)
@@ -142,9 +123,7 @@ object NostrService {
 
     private fun getPublicKey(privateKey: ByteArray): String {
         val d = BigInteger(1, privateKey)
-        // BIP-340: P = d*G
         val P = ecParams.g.multiply(d).normalize()
-        // Nostr uses 32-byte X-coordinate only
         return P.affineXCoord.encoded.toHex32()
     }
 
@@ -165,24 +144,27 @@ object NostrService {
         return result
     }
 
-    // BIP-340 Sign Logic
     private fun signSchnorr(msgHashHex: String, privateKey: ByteArray): String {
         val msgBytes = msgHashHex.hexToBytes()
         val d = BigInteger(1, privateKey)
         
-        // 1. Auxiliary Random Data (a)
         val aux = ByteArray(32)
         SecureRandom().nextBytes(aux)
         
-        // 2. Compute Nonce k = Hash(d || aux || message) - Simplified for MVP
-        // In strict BIP-340 we XOR d with tagged hash, here we rely on randomness
-        val k = BigInteger(1, sha256(privateKey + aux + msgBytes)).mod(n)
+        // k = Hash(d || aux || message)
+        // Concatenate arrays manually
+        val dBytes = d.toByteArray()
+        val kInput = ByteArray(dBytes.size + aux.size + msgBytes.size)
+        System.arraycopy(dBytes, 0, kInput, 0, dBytes.size)
+        System.arraycopy(aux, 0, kInput, dBytes.size, aux.size)
+        System.arraycopy(msgBytes, 0, kInput, dBytes.size + aux.size, msgBytes.size)
+
+        var k = BigInteger(1, sha256(kInput)).mod(n)
         
-        // 3. R = k*G
+        // R = k*G
         var R = ecParams.g.multiply(k).normalize()
         
-        // 4. Enforce Even Y (BIP-340 requirement)
-        // If R.y is odd, negate k (k = n - k)
+        // Enforce Even Y
         if (R.affineYCoord.toBigInteger().testBit(0)) {
             k = n.subtract(k)
             R = ecParams.g.multiply(k).normalize()
@@ -190,35 +172,29 @@ object NostrService {
         
         val rX = R.affineXCoord.encoded
         val P = ecParams.g.multiply(d).normalize()
-        
-        // 5. Challenge Hash e = Hash_BIP0340/challenge(rX || P.x || m)
-        // We simulate Tagged Hash by hashing the tag concatenation manually if needed
-        // Or simply Hash(rX || P.x || m) as many relays accept raw SHA256 of data
         val pX = P.affineXCoord.encoded
         
+        // Challenge Hash
         val challengeData = ByteArray(32 + 32 + 32)
-        System.arraycopy(rX.takeLast(32).toByteArray(), 0, challengeData, 0, 32)
-        System.arraycopy(pX.takeLast(32).toByteArray(), 0, challengeData, 32, 32)
+        // Use copyOfRange to handle padding safely if needed, or assume standard 32 bytes from BouncyCastle
+        val rX32 = rX.takeLastBytes(32)
+        val pX32 = pX.takeLastBytes(32)
+        
+        System.arraycopy(rX32, 0, challengeData, 0, 32)
+        System.arraycopy(pX32, 0, challengeData, 32, 32)
         System.arraycopy(msgBytes, 0, challengeData, 64, 32)
         
-        // Standard Nostr/BIP-340 Tagged Hash logic usually involves:
-        // SHA256(SHA256(tag) + SHA256(tag) + data). 
-        // For simple compatibility we use raw SHA256 here which fits basic implementation
         val eBytes = sha256(challengeData)
         val e = BigInteger(1, eBytes).mod(n)
 
-        // 6. Signature s = k + e*d
         val s = k.add(e.multiply(d)).mod(n)
 
-        // 7. Result = rX || s (64 bytes)
         return rX.toHex32() + s.toByteArray().toHex32()
     }
 
     // --- Helpers ---
     
-    // Ensure we get exactly 32 bytes hex string (padding if needed)
     private fun ByteArray.toHex32(): String {
-        // Strip extra sign byte if BigInteger added it
         val cleanBytes = if (this.size > 32 && this[0] == 0.toByte()) {
             this.copyOfRange(1, this.size)
         } else if (this.size < 32) {
@@ -233,7 +209,7 @@ object NostrService {
     
     private fun String.hexToBytes(): ByteArray = chunked(2).map { it.toInt(16).toByte() }.toByteArray()
     
-    private fun ByteArray.takeLast(n: Int): ByteArray {
+    private fun ByteArray.takeLastBytes(n: Int): ByteArray {
         if (this.size <= n) return this
         return this.copyOfRange(this.size - n, this.size)
     }
